@@ -41,23 +41,20 @@ class Bot: TelegramLongPollingBot(){
                     )
                 }
                 val responseText = "\uD83D\uDC47 Quyidagilardan birini tanlang"
-
-                println(regionRepository!!.findAll())
                 val replyMessage = SendMessage(chatId.toString(), responseText).apply { replyMarkup = markup }
                 execute(replyMessage)
             }
         }
 
-        if  (update.hasCallbackQuery()){
-            val chatId = update.callbackQuery.message.chatId
-            val markup = InlineKeyboardMarkup().apply {
-                this.keyboard = keyBoardList
+        if(update.hasCallbackQuery()){
+            if(update.callbackQuery.data == "Taxi" || update.callbackQuery.data == "Client"){
+                val chatId = update.callbackQuery.message.chatId
+                val markup = InlineKeyboardMarkup().apply { this.keyboard = keyBoardList }
+                val responseText = "Qayerdan"
+                val replyMessage = SendMessage(chatId.toString(), responseText).apply { replyMarkup = markup }
+                execute(replyMessage)
             }
-            val responseText = "Qayerdan"
-
-            println(regionRepository!!.findAll())
-            val replyMessage = SendMessage(chatId.toString(), responseText).apply { replyMarkup = markup }
-            execute(replyMessage)
         }
+
     }
 }
