@@ -24,10 +24,20 @@ class Bot: TelegramLongPollingBot(){
         val regionList = regionRepository!!.findAll();
 
         val keyBoardList = ArrayList<List<InlineKeyboardButton>>();
-        regionList.forEach {
-            keyBoardList.add(
-                listOf(InlineKeyboardButton(it.nameLatin!!).apply { callbackData = it.nameLatin })
-            )
+        var keyBoardRow = ArrayList<InlineKeyboardButton>()
+
+        regionList.forEachIndexed { index, it ->
+            keyBoardRow.add(InlineKeyboardButton(it.nameLatin!!).apply { callbackData = it.nameLatin })
+            if (index % 2 == 1){
+                keyBoardList.add(keyBoardRow)
+                keyBoardRow = ArrayList()
+            }
+            else if( index == regionList.size-1)
+                keyBoardList.add(keyBoardRow)
+
+//            keyBoardList.add(
+//                listOf(InlineKeyboardButton(it.nameLatin!!).apply { callbackData = it.nameLatin })
+//            )
         }
 
         if (update.hasMessage()) {
