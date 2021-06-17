@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository
 @Repository
 interface SubRegionRepository: JpaRepository<SubRegion, Long> {
 
+    fun findAllByRegionNameLatin(regionName: String): List<SubRegion>
+
 }
