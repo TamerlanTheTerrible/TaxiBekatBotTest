@@ -1,6 +1,6 @@
 package me.timur.taxibekatbot.service.telegram
 
-import me.timur.taxibekatbot.entity.Region
+import me.timur.taxibekatbot.entity.Announcement
 import me.timur.taxibekatbot.entity.SubRegion
 import me.timur.taxibekatbot.entity.enum.AnnouncementType
 import me.timur.taxibekatbot.repository.RegionRepository
@@ -13,6 +13,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
+import java.time.LocalDate
 
 @Component
 class UpdateHandler
@@ -27,8 +28,6 @@ class UpdateHandler
     var to: SubRegion? = null
 
     fun handle(update: Update): SendMessage{
-        val regionList = regionRepository.findAll()
-        val subRegionList = subRegionRepository.findAll()
 
         if (update.hasMessage())
             if (update.message.text == "/start")
@@ -38,34 +37,75 @@ class UpdateHandler
             val callbackData = update.callbackQuery.data
 
             if(callbackData.contains(PREFIX_TYPE))
-                return callbackAnnouncementType(update, regionList)
+                return callbackType(update)
 
             if (callbackData.contains(PREFIX_FROM_REGION))
-                return callbackFromRegion(update, subRegionList)
+                return callbackFromRegion(update)
 
-            if (subRegionList.any { it.nameLatin == callbackData})
-                return callbackSaveAnnouncement(update)
+            if (callbackData.contains(PREFIX_FROM_SUB_REGION))
+                return callbackFromSubRegion(update)
+
+            if (callbackData.contains(PREFIX_TO_REGION))
+                return callbackToRegion(update)
+
+            if (callbackData.contains(PREFIX_TO_SUB_REGION)){
+                return callbackToSubRegion(update)
+            }
+
         }
         return sendMessage(update, "Kutilmagan xatolik")
     }
 
-    private fun callbackFromRegion(update: Update, subRegionList: List<SubRegion>): SendMessage {
-        val callbackData = update.callbackQuery.data
-        val list = subRegionList.filter { it.region!!.nameLatin == callbackData.substringAfter(PREFIX_FROM_REGION) }
+    private fun callbackToSubRegion(update: Update): SendMessage {
+        val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
+        to = subRegionRepository.findByNameLatin(name)
 
-        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
-        return sendMessage(update, "Qaysi shahar/tumandan").apply { this.replyMarkup = replyMarkup }
+        val announcement = Announcement(
+            announcementType = announcementType,
+            tripDate = LocalDate.now(),
+            from = from,
+            to = to,
+            telegramUser = null
+        )
+
+        announcementService.save(announcement)
+
+        return sendMessage(update, announcement.toString())
     }
 
-    private fun callbackAnnouncementType(update: Update, regionList: List<Region>): SendMessage {
-        announcementType = AnnouncementType.findByName(update.callbackQuery.message.text.substringAfter(PREFIX_TYPE))
+    private fun callbackToRegion(update: Update): SendMessage {
+        val name = update.callbackQuery.data.substringAfter(PREFIX_TO_REGION)
+        val list = subRegionRepository.findAllByRegionNameLatin(name)
+        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_SUB_REGION)
 
-        val replyMarkup = createMarkupFromPlaceList(regionList, PREFIX_FROM_REGION)
+        return sendMessage(update, "Qaysi shahar/tumanga").apply { this.replyMarkup = replyMarkup }
+    }
+
+    private fun callbackFromSubRegion(update: Update): SendMessage {
+        val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_SUB_REGION)
+        from = subRegionRepository.findByNameLatin(name)
+
+        val list = regionRepository.findAll()
+        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_REGION)
+
+        return sendMessage(update, "Qaysi viloyatga").apply { this.replyMarkup = replyMarkup }
+    }
+
+    private fun callbackType(update: Update): SendMessage {
+        announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
+
+        val list = regionRepository.findAll()
+        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_REGION)
+
         return sendMessage(update, "Qaysi viloyatdan").apply { this.replyMarkup = replyMarkup }
     }
 
-    private fun callbackSaveAnnouncement(update: Update): SendMessage {
-        TODO("Not yet implemented")
+    private fun callbackFromRegion(update: Update): SendMessage {
+        val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_REGION)
+        val list = subRegionRepository.findAllByRegionNameLatin(name)
+        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
+
+        return sendMessage(update, "Qaysi shahar/tumandan").apply { this.replyMarkup = replyMarkup }
     }
 
     private fun commandStart(update: Update): SendMessage {
@@ -80,9 +120,9 @@ class UpdateHandler
     }
 
     private fun sendMessage(update: Update, replyText: String): SendMessage{
-        val id = if (update.hasMessage()) update.message.chatId.toString()
-        else update.callbackQuery.message.chatId.toString()
-        return SendMessage(id, replyText)
+        val chatId = if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
+
+        return SendMessage(chatId, replyText)
     }
 
     private fun createMarkupFromPlaceList(objectList: List<Any>, callbackDataPrefix: String? = null): InlineKeyboardMarkup{

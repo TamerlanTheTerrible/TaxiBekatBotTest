@@ -19,5 +19,9 @@ class SubRegion() {
     @ManyToOne
     @JoinColumn(name = "region_id")
     var region: Region? = null
+    override fun toString(): String {
+        return "SubRegion(id=$id, nameLatin=$nameLatin, nameCyrillic=$nameCyrillic, region=$region)"
+    }
+
 
 }

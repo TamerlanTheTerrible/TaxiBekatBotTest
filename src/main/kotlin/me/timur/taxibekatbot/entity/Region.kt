@@ -22,4 +22,10 @@ class Region() {
         this.nameCyrillic = nameCyrillic
         this.nameLatin = nameLatin
     }
+
+    override fun toString(): String {
+        return "Region(id=$id, nameCyrillic=$nameCyrillic, nameLatin=$nameLatin)"
+    }
+
+
 }

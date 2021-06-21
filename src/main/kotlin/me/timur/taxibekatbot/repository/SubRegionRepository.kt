@@ -9,4 +9,6 @@ interface SubRegionRepository: JpaRepository<SubRegion, Long> {
 
     fun findAllByRegionNameLatin(regionName: String): List<SubRegion>
 
+    fun findByNameLatin(name: String): SubRegion?
+
 }

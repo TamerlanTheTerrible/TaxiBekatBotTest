@@ -18,7 +18,7 @@ class Announcement {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "look_for")
-    var lookFor: AnnouncementType? = null
+    var announcementType: AnnouncementType? = null
 
     @Column(name = "trip_date")
     var tripDate: LocalDate? = null
@@ -34,5 +34,24 @@ class Announcement {
     @ManyToOne
     @JoinColumn(name = "user")
     var telegramUser: TelegramUser? = null
+
+    constructor(
+        announcementType: AnnouncementType?,
+        tripDate: LocalDate?,
+        from: SubRegion?,
+        to: SubRegion?,
+        telegramUser: TelegramUser?
+    ) {
+        this.announcementType = announcementType
+        this.tripDate = tripDate
+        this.from = from
+        this.to = to
+        this.telegramUser = telegramUser
+    }
+
+    override fun toString(): String {
+        return "Announcement(id=$id, dateCreated=$dateCreated, announcementType=$announcementType, tripDate=$tripDate, from=$from, to=$to, telegramUser=$telegramUser)"
+    }
+
 
 }

@@ -18,5 +18,9 @@ class TelegramUser {
 
     @Column(name = "first_name")
     var firstName: String? = null
+    override fun toString(): String {
+        return "TelegramUser(id=$id, userName=$userName, lastName=$lastName, firstName=$firstName)"
+    }
+
 
 }
