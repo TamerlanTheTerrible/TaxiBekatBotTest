@@ -31,6 +31,7 @@ class UpdateHandler
     var announcementType: AnnouncementType? = null
     var from: SubRegion? = null
     var to: SubRegion? = null
+    var date: LocalDate? = null
 
     fun handle(update: Update): SendMessage{
 
@@ -57,9 +58,11 @@ class UpdateHandler
             if (callbackData.contains(PREFIX_TO_REGION))
                 return callbackToRegion(update)
 
-            if (callbackData.contains(PREFIX_TO_SUB_REGION)){
+            if (callbackData.contains(PREFIX_TO_SUB_REGION))
                 return callbackToSubRegion(update)
-            }
+
+            if (callbackData.contains(PREFIX_DATE))
+                return callbackDate(update)
         }
 
         return sendMessage(update, "Kutilmagan xatolik")
@@ -75,12 +78,10 @@ class UpdateHandler
         return sendMessage(update, replyText).apply { this.replyMarkup = ReplyKeyboardRemove(true) }
     }
 
-    private fun callbackToSubRegion(update: Update): SendMessage {
-        val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
-        to = subRegionRepository.findByNameLatin(name)
+    private fun callbackDate(update: Update): SendMessage {
+        val dateInString = update.callbackQuery.data.substringAfter(PREFIX_DATE)
+        date = LocalDate.parse(dateInString)
 
-        //TODO move contact request logic to the next request
-        //TODO request a trip date
         val replyText = "Telefon raqamingizni ulashing"
         val keyboard = KeyboardButton().apply {
             this.text = "Tel raqamni yuborish"
@@ -91,6 +92,43 @@ class UpdateHandler
         val markup = ReplyKeyboardMarkup().apply { this.keyboard = listOf(keyboardRow) }
 
         return sendMessage(update, replyText).apply { this.replyMarkup = markup }
+    }
+
+    private fun callbackToSubRegion(update: Update): SendMessage {
+        val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
+        to = subRegionRepository.findByNameLatin(name)
+
+        val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
+        var keyBoardRow = ArrayList<InlineKeyboardButton>()
+
+        var now = LocalDate.now()
+        var currentMonth = 0
+
+        for (i in 0..9){
+            if (now.month.value > currentMonth){
+                currentMonth = now.month.value
+                keyBoardRow.add(InlineKeyboardButton(now.month.name).apply { callbackData = PREFIX_TO_SUB_REGION })
+                keyBoardList.add(keyBoardRow)
+                keyBoardRow = ArrayList()
+            }
+            if (i % 7 == 1){
+                keyBoardList.add(keyBoardRow)
+                keyBoardRow = ArrayList()
+            }
+
+            now = now.plusDays(1)
+
+            keyBoardRow.add(InlineKeyboardButton(now.dayOfMonth.toString())
+                .apply { callbackData = "$PREFIX_DATE$now"})
+        }
+
+        keyBoardList.add(keyBoardRow)
+
+        val replyText = "\uD83D\uDCC5 Sa'nani kiriting"
+        val markup = InlineKeyboardMarkup().apply { keyboard = keyBoardList }
+
+        return sendMessage(update, replyText).apply { replyMarkup = markup }
+
     }
 
     private fun callbackToRegion(update: Update): SendMessage {
@@ -156,11 +194,13 @@ class UpdateHandler
         objectList.forEachIndexed { index, it ->
             val fieldValue = InvokeGetter.invokeGetter(it, keyboardTextField).toString()
             val cbData = if (callbackDataPrefix == null) fieldValue else "${callbackDataPrefix}${fieldValue}"
+
             keyBoardRow.add(InlineKeyboardButton(fieldValue).apply { callbackData = cbData })
             if (index % 2 == 1) {
                 keyBoardList.add(keyBoardRow)
                 keyBoardRow = ArrayList()
-            } else if (index == objectList.size - 1)
+            }
+            else if (index == objectList.size - 1)
                 keyBoardList.add(keyBoardRow)
         }
 
@@ -173,6 +213,7 @@ class UpdateHandler
         const val PREFIX_TO_SUB_REGION = "ToSubRegion_"
         const val PREFIX_FROM_REGION = "FromRegion_"
         const val PREFIX_TO_REGION = "ToRegion_"
+        const val PREFIX_DATE = "Date_"
     }
 
 }
