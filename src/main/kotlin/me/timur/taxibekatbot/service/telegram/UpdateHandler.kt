@@ -10,9 +10,14 @@ import me.timur.taxibekatbot.util.InvokeGetter
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
 import java.time.LocalDate
 
 @Component
@@ -29,9 +34,13 @@ class UpdateHandler
 
     fun handle(update: Update): SendMessage{
 
-        if (update.hasMessage())
+        if (update.hasMessage()){
             if (update.message.text == "/start")
                 return commandStart(update)
+
+            if (update.message.replyToMessage.text == "Telefon raqamingizni ulashing")
+                return reviewAnnouncement(update)
+        }
 
         if (update.hasCallbackQuery()){
             val callbackData = update.callbackQuery.data
@@ -51,26 +60,37 @@ class UpdateHandler
             if (callbackData.contains(PREFIX_TO_SUB_REGION)){
                 return callbackToSubRegion(update)
             }
-
         }
+
         return sendMessage(update, "Kutilmagan xatolik")
+    }
+
+    private fun reviewAnnouncement(update: Update): SendMessage {
+        //TODO("save phone number in TelegramUser")
+        //TODO("replace LocalDate.now() to a date, chosen by a user")
+        val replyText = "E'lon: " +
+                "\n \uD83C\uDF06 Yo'nalish: ${from?.nameLatin} - ${to?.nameLatin} " +
+                "\n \uD83D\uDCC5 Sana: ${LocalDate.now()}"
+
+        return sendMessage(update, replyText).apply { this.replyMarkup = ReplyKeyboardRemove(true) }
     }
 
     private fun callbackToSubRegion(update: Update): SendMessage {
         val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
         to = subRegionRepository.findByNameLatin(name)
 
-        val announcement = Announcement(
-            announcementType = announcementType,
-            tripDate = LocalDate.now(),
-            from = from,
-            to = to,
-            telegramUser = null
-        )
+        //TODO move contact request logic to the next request
+        //TODO request a trip date
+        val replyText = "Telefon raqamingizni ulashing"
+        val keyboard = KeyboardButton().apply {
+            this.text = "Tel raqamni yuborish"
+            this.requestContact = true
+        }
 
-        announcementService.save(announcement)
+        val keyboardRow = KeyboardRow().apply { add(keyboard) }
+        val markup = ReplyKeyboardMarkup().apply { this.keyboard = listOf(keyboardRow) }
 
-        return sendMessage(update, announcement.toString())
+        return sendMessage(update, replyText).apply { this.replyMarkup = markup }
     }
 
     private fun callbackToRegion(update: Update): SendMessage {
@@ -109,6 +129,9 @@ class UpdateHandler
     }
 
     private fun commandStart(update: Update): SendMessage {
+
+        //TODO save contact if not saved
+
         val keyboard = listOf( listOf(
             InlineKeyboardButton("\uD83D\uDE96 Taksi izlash") .apply { callbackData = "${PREFIX_TYPE}TAXI" },
             InlineKeyboardButton("\uD83D\uDE4B\uD83C\uDFFB\u200D♂️Yo'lovchi izlash").apply { callbackData = "${PREFIX_TYPE}CLIENT"}))
