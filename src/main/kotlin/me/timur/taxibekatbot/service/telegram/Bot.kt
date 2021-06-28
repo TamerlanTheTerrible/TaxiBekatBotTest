@@ -28,9 +28,6 @@ class Bot: TelegramLongPollingBot(){
         val chatId = if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
         val messageId = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
 
-        //TODO move forward logic in UpdateHandler
-        execute(ForwardMessage(UpdateHandler.TELEGRAM_CHANNEL, chatId, messageId))
-
         val deleteMsg = DeleteMessage(chatId, messageId)
         execute(deleteMsg)
 

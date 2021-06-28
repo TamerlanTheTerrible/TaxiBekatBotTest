@@ -7,6 +7,7 @@ import me.timur.taxibekatbot.entity.enum.AnnouncementType
 import me.timur.taxibekatbot.repository.RegionRepository
 import me.timur.taxibekatbot.repository.SubRegionRepository
 import me.timur.taxibekatbot.service.AnnouncementService
+import me.timur.taxibekatbot.service.TelegramUserService
 import me.timur.taxibekatbot.util.InvokeGetter
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
@@ -17,6 +18,7 @@ import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
@@ -27,7 +29,8 @@ class UpdateHandler
 @Autowired constructor(
     private val regionRepository: RegionRepository,
     private val subRegionRepository: SubRegionRepository,
-    private val announcementService: AnnouncementService
+    private val announcementService: AnnouncementService,
+    private val telegramUserService: TelegramUserService
 ){
 
     var announcementType: AnnouncementType? = null
@@ -37,7 +40,7 @@ class UpdateHandler
     var phone: String? = null
     var telegramUser: TelegramUser? = null
 
-    fun handle(update: Update): List<SendMessage>{
+    fun handle(update: Update): List<BotApiMethod<Message>>{
 
         if (update.hasMessage()){
             if (update.message.text == "/start")
@@ -78,24 +81,36 @@ class UpdateHandler
         return listOf(sendMessage(update, "Kutilmagan xatolik"))
     }
 
-    private fun saveAnnouncement(update: Update): List<SendMessage> {
+    private fun saveAnnouncement(update: Update): List<BotApiMethod<Message>> {
         val announcement = Announcement(announcementType, date, from, to, telegramUser)
         announcementService.save(announcement)
 
-        val replyText = "${announcement.id} raqamli e'lon joylashtirildi" +
-                TELEGRAM_CHANNEL
+        val replyText = "#${announcement.id} raqamli e'lon joylashtirildi" +
+                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST"
 
-        return listOf(sendMessage(update, replyText))
+        val chatId = getChatId(update)
+        val sendMessage = SendMessage(chatId, replyText)
+
+        val messageToForward = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
+        val forwardMessage = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, chatId, messageToForward)
+
+        return listOf(sendMessage, forwardMessage)
     }
 
     private fun reviewAnnouncement(update: Update): List<SendMessage> {
-        //TODO("save phone number in TelegramUser")
         phone = update.message.contact.phoneNumber
 
-        val replyText = "E'lon: " +
+        telegramUserService.savePhone(update)
+
+        val replyText = "\n \uD83D\uDD0D Qidirilmoqda: $announcementType" +
+                "\n \uD83D\uDCE2 E'lon: " +
                 "\n \uD83C\uDF06 Yo'nalish: ${from?.nameLatin} - ${to?.nameLatin} " +
                 "\n \uD83D\uDCC5 Sana: $date" +
-                "\n \uD83D\uDCF1 Tel: $phone"
+                "\n \uD83D\uDCF1 Tel: $phone" +
+                "\n" +
+                "\n #${(from?.nameLatin)?.substringBefore(" ")}" +
+                "${(to?.nameLatin)?.substringBefore(" ")}" +
+                "$announcementType"
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(
             listOf(
@@ -134,21 +149,22 @@ class UpdateHandler
         var currentMonth = 0
 
         for (i in 0..9){
+
             if (now.month.value > currentMonth){
                 currentMonth = now.month.value
                 keyBoardRow.add(InlineKeyboardButton(now.month.name).apply { callbackData = PREFIX_TO_SUB_REGION })
                 keyBoardList.add(keyBoardRow)
                 keyBoardRow = ArrayList()
             }
+
             if (i % 7 == 1){
                 keyBoardList.add(keyBoardRow)
                 keyBoardRow = ArrayList()
             }
 
-            now = now.plusDays(1)
+            keyBoardRow.add(InlineKeyboardButton(now.dayOfMonth.toString()).apply { callbackData = "$PREFIX_DATE$now"})
 
-            keyBoardRow.add(InlineKeyboardButton(now.dayOfMonth.toString())
-                .apply { callbackData = "$PREFIX_DATE$now"})
+            now = now.plusDays(1)
         }
 
         keyBoardList.add(keyBoardRow)
@@ -197,7 +213,9 @@ class UpdateHandler
 
     private fun commandStart(update: Update): List<SendMessage> {
 
-        //TODO save contact if not saved
+        clearVariables()
+
+        telegramUser = telegramUserService.saveUser(update)
 
         val keyboard = listOf( listOf(
             InlineKeyboardButton("\uD83D\uDE96 Taksi izlash") .apply { callbackData = "${PREFIX_TYPE}TAXI" },
@@ -206,15 +224,19 @@ class UpdateHandler
         val markup = InlineKeyboardMarkup().apply { this.keyboard = keyboard }
         val responseText = "\uD83D\uDC47 Quyidagilardan birini tanlang"
 
+        ReplyKeyboardRemove(true)
+
         return listOf(sendMessage(update, responseText).apply { replyMarkup = markup })
     }
 
     private fun sendMessage(update: Update, replyText: String): SendMessage{
-        val chatId = if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
-
-
+        val chatId = getChatId(update)
         return SendMessage(chatId, replyText)
     }
+
+
+    private fun getChatId(update: Update) =
+        if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
 
     private fun createMarkupFromPlaceList(objectList: List<Any>, callbackDataPrefix: String? = null): InlineKeyboardMarkup{
         val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
@@ -237,6 +259,15 @@ class UpdateHandler
         return InlineKeyboardMarkup().apply { this.keyboard = keyBoardList }
     }
 
+    private fun clearVariables() {
+        announcementType = null
+        from = null
+        to = null
+        telegramUser = null
+        date = null
+        phone = null
+    }
+
     companion object {
         const val PREFIX_TYPE = "Type_"
         const val PREFIX_FROM_SUB_REGION = "FromSubRegion_"
@@ -246,7 +277,8 @@ class UpdateHandler
         const val PREFIX_DATE = "Date_"
         const val SAVE_ANNOUNCEMENT = "SaveAnnouncement"
         const val CHANGE = "Change"
-        const val TELEGRAM_CHANNEL = "@taxi_bekat_test_chanel"
+        const val CHANNEL_ID_TAXI_BEKAT_TEST = "@taxi_bekat_test_chanel"
+        const val CHANNEL_LINK_TAXI_BEKAT_TEST = "https://t.me/taxi_bekat_test_chanel"
     }
 
 }
