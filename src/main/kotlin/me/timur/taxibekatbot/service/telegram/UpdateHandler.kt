@@ -109,7 +109,9 @@ class UpdateHandler
 
         val forwardMessage = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, chatId, messageId)
 
-        return listOf(sendMessage, forwardMessage)
+        return listOf(
+            sendMessage.apply { replyMarkup = ReplyKeyboardRemove(true) },
+            forwardMessage)
     }
 
     private fun reviewAnnouncement(update: Update): List<SendMessage> {
@@ -148,7 +150,11 @@ class UpdateHandler
         }
 
         val keyboardRow = KeyboardRow().apply { add(keyboard) }
-        val markup = ReplyKeyboardMarkup().apply { this.keyboard = listOf(keyboardRow) }
+        val markup = ReplyKeyboardMarkup().apply {
+            this.keyboard = listOf(keyboardRow)
+            oneTimeKeyboard = true
+            resizeKeyboard = true
+        }
 
         return listOf(sendMessage(update, replyText).apply { this.replyMarkup = markup })
     }
