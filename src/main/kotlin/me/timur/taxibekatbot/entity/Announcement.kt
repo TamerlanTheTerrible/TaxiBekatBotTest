@@ -1,5 +1,6 @@
 package me.timur.taxibekatbot.entity
 
+import me.timur.taxibekatbot.entity.enum.AnnouncementStatus
 import me.timur.taxibekatbot.entity.enum.AnnouncementType
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -35,18 +36,27 @@ class Announcement {
     @JoinColumn(name = "user")
     var telegramUser: TelegramUser? = null
 
+    @Column(name = "telegram_message_id")
+    var telegramMessageId: Int? = null
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    var status: AnnouncementStatus = AnnouncementStatus.ACTIVE
+
     constructor(
         announcementType: AnnouncementType?,
         tripDate: LocalDate?,
         from: SubRegion?,
         to: SubRegion?,
-        telegramUser: TelegramUser?
+        telegramUser: TelegramUser?,
+        messageId: Int
     ) {
         this.announcementType = announcementType
         this.tripDate = tripDate
         this.from = from
         this.to = to
         this.telegramUser = telegramUser
+        this.telegramMessageId = messageId
     }
 
     override fun toString(): String {

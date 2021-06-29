@@ -82,17 +82,32 @@ class UpdateHandler
     }
 
     private fun saveAnnouncement(update: Update): List<BotApiMethod<Message>> {
-        val announcement = Announcement(announcementType, date, from, to, telegramUser)
+        val messageId = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
+
+        val announcement = Announcement(announcementType, date, from, to, telegramUser, messageId)
         announcementService.save(announcement)
 
-        val replyText = "#${announcement.id} raqamli e'lon joylashtirildi" +
+        var replyText = "#${announcement.id} raqamli e'lon joylashtirildi" +
                 "\n $CHANNEL_LINK_TAXI_BEKAT_TEST"
+
+        val matchingAnnouncements = announcementService.matchAnnouncement(announcement)
+
+        if (matchingAnnouncements.isEmpty())
+           replyText = "$replyText\n\n hozircha mos e'lon topilmadi."
+        else {
+            replyText = "$replyText\n\n Quyidagi e'lonlar sizga mos kelishi mumkin: "
+            matchingAnnouncements.forEach {
+                replyText = "$replyText\n\n E'lon #${it.id}" +
+                        "\n Yo'nalish: ${it.from?.nameLatin} - ${it.to?.nameLatin} " +
+                        "\n Sana: ${it.tripDate}" +
+                        "\n Tel: ${it.telegramUser?.phone}"
+            }
+        }
 
         val chatId = getChatId(update)
         val sendMessage = SendMessage(chatId, replyText)
 
-        val messageToForward = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
-        val forwardMessage = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, chatId, messageToForward)
+        val forwardMessage = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, chatId, messageId)
 
         return listOf(sendMessage, forwardMessage)
     }
