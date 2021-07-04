@@ -3,6 +3,8 @@ package me.timur.taxibekatbot.service.telegram
 import ch.qos.logback.classic.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.PropertySource
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
@@ -11,12 +13,18 @@ import org.telegram.telegrambots.meta.api.objects.Update
 @Component
 class Bot: TelegramLongPollingBot(){
 
+    @Value("\${bot.username}")
+    lateinit var tgBotName: String;
+
+    @Value("\${bot.token}")
+    lateinit var tgBotToken: String;
+
     @Autowired
     private var updateHandler: UpdateHandler? = null
 
-    override fun getBotToken(): String = "1701771559:AAHHX0t5na8uODKgSqyRjNva8EwvFPWiPTE"
+    override fun getBotToken(): String = tgBotToken
 
-    override fun getBotUsername(): String = "TaxiBekatTestBot"
+    override fun getBotUsername(): String = tgBotName
 
     override fun onUpdateReceived(update: Update) {
         try {
