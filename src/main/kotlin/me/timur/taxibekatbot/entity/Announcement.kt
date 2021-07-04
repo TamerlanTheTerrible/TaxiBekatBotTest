@@ -33,7 +33,7 @@ class Announcement {
     var to: SubRegion? = null
 
     @ManyToOne
-    @JoinColumn(name = "user")
+    @JoinColumn(name = "user_id")
     var telegramUser: TelegramUser? = null
 
     @Column(name = "telegram_message_id")
