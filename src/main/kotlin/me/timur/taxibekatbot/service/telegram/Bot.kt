@@ -9,6 +9,8 @@ import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
+import java.io.FileDescriptor.err
+import java.lang.System.err
 import java.time.format.DateTimeFormatter
 
 @Component
@@ -36,6 +38,7 @@ class Bot: TelegramLongPollingBot(){
             execute(deleteMsg)
         } catch (e: Exception) {
             logger.error((e.message ?: e).toString())
+            System.err.println(e)
         }
     }
 
