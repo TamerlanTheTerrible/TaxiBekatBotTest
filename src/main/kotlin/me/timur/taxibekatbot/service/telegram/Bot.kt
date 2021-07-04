@@ -5,13 +5,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
-import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Update
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
-import java.io.FileDescriptor.err
-import java.lang.System.err
-import java.time.format.DateTimeFormatter
 
 @Component
 class Bot: TelegramLongPollingBot(){
@@ -41,7 +36,6 @@ class Bot: TelegramLongPollingBot(){
             System.err.println(e)
         }
     }
-
 
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(Bot::class.java) as Logger
