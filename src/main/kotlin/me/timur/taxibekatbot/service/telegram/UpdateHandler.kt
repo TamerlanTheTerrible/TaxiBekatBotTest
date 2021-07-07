@@ -10,6 +10,7 @@ import me.timur.taxibekatbot.service.AnnouncementService
 import me.timur.taxibekatbot.service.TelegramUserService
 import me.timur.taxibekatbot.util.InvokeGetter
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
+import me.timur.taxibekatbot.util.PhoneUtil.getFormattedPhone
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
@@ -42,30 +43,27 @@ class UpdateHandler
     var telegramUser: TelegramUser? = null
 
     fun handle(update: Update): List<BotApiMethod<Message>>{
-        val messages: List<BotApiMethod<Message>> =
 
-        when{
-            update.hasMessage() -> {
-                when {
+        val messages: List<BotApiMethod<Message>> = when {
+            update.hasMessage() -> when {
                     update.message.text == "/start" -> commandStart(update)
                     containsPhone(update) -> reviewAnnouncement(update)
                     else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
-            }
 
             update.hasCallbackQuery() -> {
                 val callbackData = update.callbackQuery.data
                 when {
-                        callbackData.contains(PREFIX_TYPE) -> callbackType(update)
-                        callbackData.contains(PREFIX_FROM_REGION) -> callbackFromRegion(update)
-                        callbackData.contains(PREFIX_FROM_SUB_REGION) -> callbackFromSubRegion(update)
-                        callbackData.contains(PREFIX_TO_REGION) -> callbackToRegion(update)
-                        callbackData.contains(PREFIX_TO_SUB_REGION) -> callbackToSubRegion(update)
-                        callbackData.contains(PREFIX_DATE) -> callbackDate(update)
-                        callbackData.contains(SAVE_ANNOUNCEMENT) -> saveAnnouncement(update)
-                        callbackData.contains(CHANGE) -> commandStart(update)
-                        else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
-                    }
+                    callbackData.contains(PREFIX_TYPE) -> callbackType(update)
+                    callbackData.contains(PREFIX_FROM_REGION) -> callbackFromRegion(update)
+                    callbackData.contains(PREFIX_FROM_SUB_REGION) -> callbackFromSubRegion(update)
+                    callbackData.contains(PREFIX_TO_REGION) -> callbackToRegion(update)
+                    callbackData.contains(PREFIX_TO_SUB_REGION) -> callbackToSubRegion(update)
+                    callbackData.contains(PREFIX_DATE) -> callbackDate(update)
+                    callbackData.contains(SAVE_ANNOUNCEMENT) -> saveAnnouncement(update)
+                    callbackData.contains(CHANGE) -> commandStart(update)
+                    else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
+                }
             }
 
             else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
@@ -108,7 +106,7 @@ class UpdateHandler
     }
 
     private fun reviewAnnouncement(update: Update): List<SendMessage> {
-        phone = formatPhoneNumber(update)
+        phone = getFormattedPhone(update)
 
         telegramUserService.savePhone(update)
 
@@ -132,18 +130,6 @@ class UpdateHandler
         return listOf(sendMessage(update, replyText).apply { this.replyMarkup = markup })
     }
 
-    private fun formatPhoneNumber(update: Update): String {
-        var phoneNumber = update.message.contact.phoneNumber ?: update.message.text
-            .replace("-", "")
-            .replace(" ", "")
-
-        if (phoneNumber.length == 9 && !phoneNumber.startsWith("+998"))
-            phoneNumber = "+998$phoneNumber"
-        else if (phoneNumber.length == 12 && !phoneNumber.startsWith("+"))
-            phoneNumber = "+$phoneNumber"
-
-        return phoneNumber
-    }
 
     private fun callbackDate(update: Update): List<SendMessage> {
         val dateInString = update.callbackQuery.data.substringAfter(PREFIX_DATE)
