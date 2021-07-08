@@ -40,7 +40,7 @@ class Bot: TelegramLongPollingBot(){
             val deleteMsg = DeleteMessage(chatId, messageId)
             execute(deleteMsg)
         } catch (e: Exception) {
-            logger.error((e.message ?: e).toString())
+            logger.error(e.stackTraceToString())
             System.err.println(e)
         }
     }

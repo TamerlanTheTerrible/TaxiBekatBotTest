@@ -54,12 +54,12 @@ class UpdateHandler
             update.hasCallbackQuery() -> {
                 val callbackData = update.callbackQuery.data
                 when {
-                    callbackData.contains(PREFIX_TYPE) -> callbackType(update)
-                    callbackData.contains(PREFIX_FROM_REGION) -> callbackFromRegion(update)
-                    callbackData.contains(PREFIX_FROM_SUB_REGION) -> callbackFromSubRegion(update)
-                    callbackData.contains(PREFIX_TO_REGION) -> callbackToRegion(update)
-                    callbackData.contains(PREFIX_TO_SUB_REGION) -> callbackToSubRegion(update)
-                    callbackData.contains(PREFIX_DATE) -> callbackDate(update)
+                    callbackData.contains(PREFIX_TYPE) -> chooseFromRegion(update)
+                    callbackData.contains(PREFIX_FROM_REGION) -> chooseFromSubRegion(update)
+                    callbackData.contains(PREFIX_FROM_SUB_REGION) -> chooseToRegion(update)
+                    callbackData.contains(PREFIX_TO_REGION) -> chooseToSubRegion(update)
+                    callbackData.contains(PREFIX_TO_SUB_REGION) -> chooseDate(update)
+                    callbackData.contains(PREFIX_DATE) -> requestContact(update)
                     callbackData.contains(SAVE_ANNOUNCEMENT) -> saveAnnouncement(update)
                     callbackData.contains(CHANGE) -> commandStart(update)
                     else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
@@ -130,29 +130,28 @@ class UpdateHandler
         return listOf(sendMessage(update, replyText).apply { this.replyMarkup = markup })
     }
 
-
-    private fun callbackDate(update: Update): List<SendMessage> {
+    private fun requestContact(update: Update): List<SendMessage> {
         val dateInString = update.callbackQuery.data.substringAfter(PREFIX_DATE)
         date = LocalDate.parse(dateInString)
 
         val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
                 "\" \uD83D\uDCF1 Raqamini yuborish \" tugmachasini bosing ⬇️"
         val keyboard = KeyboardButton().apply {
-            this.text = "uD83D\uDCF1 Raqamini yuborish"
+            this.text = "\uD83D\uDCF1 Raqamini yuborish"
             this.requestContact = true
         }
 
         val keyboardRow = KeyboardRow().apply { add(keyboard) }
         val markup = ReplyKeyboardMarkup().apply {
             this.keyboard = listOf(keyboardRow)
-            oneTimeKeyboard = true
+            oneTimeKeyboard = false
             resizeKeyboard = true
         }
 
         return listOf(sendMessage(update, replyText).apply { this.replyMarkup = markup })
     }
 
-    private fun callbackToSubRegion(update: Update): List<SendMessage> {
+    private fun chooseDate(update: Update): List<SendMessage> {
         val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
         to = subRegionRepository.findByNameLatin(name)
 
@@ -190,7 +189,7 @@ class UpdateHandler
 
     }
 
-    private fun callbackToRegion(update: Update): List<SendMessage> {
+    private fun chooseToSubRegion(update: Update): List<SendMessage> {
         val name = update.callbackQuery.data.substringAfter(PREFIX_TO_REGION)
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_SUB_REGION)
@@ -198,7 +197,7 @@ class UpdateHandler
         return listOf(sendMessage(update, "Qaysi shahar/tumanga").apply { this.replyMarkup = replyMarkup })
     }
 
-    private fun callbackFromSubRegion(update: Update): List<SendMessage> {
+    private fun chooseToRegion(update: Update): List<SendMessage> {
         val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_SUB_REGION)
         from = subRegionRepository.findByNameLatin(name)
 
@@ -208,7 +207,7 @@ class UpdateHandler
         return listOf(sendMessage(update, "Qaysi viloyatga").apply { this.replyMarkup = replyMarkup })
     }
 
-    private fun callbackType(update: Update): List<SendMessage> {
+    private fun chooseFromRegion(update: Update): List<SendMessage> {
         announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
 
         val list = regionRepository.findAll()
@@ -217,7 +216,7 @@ class UpdateHandler
         return listOf(sendMessage(update, "Qaysi viloyatdan").apply { this.replyMarkup = replyMarkup })
     }
 
-    private fun callbackFromRegion(update: Update): List<SendMessage> {
+    private fun chooseFromSubRegion(update: Update): List<SendMessage> {
         val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_REGION)
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)

@@ -7,20 +7,19 @@ import org.telegram.telegrambots.meta.api.objects.Update
 object PhoneUtil {
 
     fun containsPhone(update: Update): Boolean {
-        var containsPhone = false
         val message = update.message
 
-        if (message.replyToMessage.text.contains("Telefon raqamingizni"))
-            containsPhone = true
-        else if (message.entities.size > 0 && message.entities.any { it.type == "phone_number" })
-            containsPhone = true
-        else if (message.text.length == 9 || message.text.length == 12){
-            if (NumberUtils.isDigits(getPhone(update)))
-                containsPhone = true
+        return if (message.replyToMessage !=null && message.replyToMessage.text.contains("Telefon raqamingizni"))
+            true
+        else if (message.entities != null && message.entities.size > 0 && message.entities.any { it.type == "phone_number" })
+            true
+        else {
+            val phone = getPhone(update)
+            if (NumberUtils.isDigits(phone) && (phone.length == 9 || phone.length == 12))
+                true
             else
                 throw InvalidInputException("Noto'g'ri telefon raqami formati")
         }
-        return containsPhone
     }
 
     fun getFormattedPhone(update: Update): String {
@@ -36,7 +35,11 @@ object PhoneUtil {
     }
 
     private fun getPhone(update: Update): String {
-        val phone = update.message.contact.phoneNumber ?: update.message.text
+        val phone = if (update.message.contact != null)
+            update.message.contact.phoneNumber
+        else
+            update.message.text
+
         return (removeDeliminators(phone))
     }
 
@@ -45,6 +48,7 @@ object PhoneUtil {
             .replace("-", "")
             .replace(" ", "")
             .replace(".", "")
+            .replace("+", "")
     }
 
 }

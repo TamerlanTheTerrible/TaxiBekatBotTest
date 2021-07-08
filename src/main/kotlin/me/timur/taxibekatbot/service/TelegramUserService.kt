@@ -2,6 +2,7 @@ package me.timur.taxibekatbot.service
 
 import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.repository.TelegramUserRepository
+import me.timur.taxibekatbot.util.PhoneUtil
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.Update
@@ -20,7 +21,7 @@ class TelegramUserService
 
     fun savePhone(update: Update) {
         val tgUser = getUser(update)
-        tgUser.phone = update.message.contact.phoneNumber
+        tgUser.phone = PhoneUtil.getFormattedPhone(update)
         save(tgUser)
     }
 
