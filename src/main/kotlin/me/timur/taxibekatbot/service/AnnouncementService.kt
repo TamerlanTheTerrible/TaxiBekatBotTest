@@ -1,6 +1,7 @@
 package me.timur.taxibekatbot.service
 
 import me.timur.taxibekatbot.entity.Announcement
+import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.entity.enum.AnnouncementType
 import me.timur.taxibekatbot.repository.AnnouncementRepository
 import org.springframework.beans.factory.annotation.Autowired
@@ -23,4 +24,17 @@ class AnnouncementService
             to = anc.to!!
         )
     }
+
+    fun getMostPopularRoutesByUserAndAnnouncementType(
+        user: TelegramUser,
+        type: AnnouncementType
+    ): ArrayList<String> {
+        val results = announcementRepository.getMostPopularRoutesByUserAndAnnouncementType(user.id!!, type.name)
+        val destinations = ArrayList<String>()
+        results.forEach {
+            destinations.add("${it[0]}-${it[0]}")
+        }
+        return destinations
+    }
+
 }

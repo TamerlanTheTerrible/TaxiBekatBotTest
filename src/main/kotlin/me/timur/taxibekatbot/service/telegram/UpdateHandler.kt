@@ -54,6 +54,7 @@ class UpdateHandler
             update.hasCallbackQuery() -> {
                 val callbackData = update.callbackQuery.data
                 when {
+                    callbackData.contains(PREFIX_TYPE) -> chooseRoute(update)
                     callbackData.contains(PREFIX_TYPE) -> chooseFromRegion(update)
                     callbackData.contains(PREFIX_FROM_REGION) -> chooseFromSubRegion(update)
                     callbackData.contains(PREFIX_FROM_SUB_REGION) -> chooseToRegion(update)
@@ -207,6 +208,15 @@ class UpdateHandler
         return listOf(sendMessage(update, "Qaysi viloyatga").apply { this.replyMarkup = replyMarkup })
     }
 
+    private fun chooseFromSubRegion(update: Update): List<SendMessage> {
+        val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_REGION)
+        val list = subRegionRepository.findAllByRegionNameLatin(name)
+        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
+
+        return listOf(sendMessage(update, "Qaysi shahar/tumandan").apply { this.replyMarkup = replyMarkup })
+    }
+
+
     private fun chooseFromRegion(update: Update): List<SendMessage> {
         announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
 
@@ -216,12 +226,24 @@ class UpdateHandler
         return listOf(sendMessage(update, "Qaysi viloyatdan").apply { this.replyMarkup = replyMarkup })
     }
 
-    private fun chooseFromSubRegion(update: Update): List<SendMessage> {
-        val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_REGION)
-        val list = subRegionRepository.findAllByRegionNameLatin(name)
-        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
+    private fun chooseRoute(update: Update): List<BotApiMethod<Message>> {
+        announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
 
-        return listOf(sendMessage(update, "Qaysi shahar/tumandan").apply { this.replyMarkup = replyMarkup })
+        val routes = announcementService.getMostPopularRoutesByUserAndAnnouncementType(telegramUser!!, announcementType!!)
+
+        return if (routes.isNullOrEmpty())
+            chooseFromRegion(update)
+        else {
+            val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
+            routes.forEach {
+                keyBoardList.add(listOf(InlineKeyboardButton("✅ $it").apply { callbackData = "$PREFIX_ROUTE$it" }))
+            }
+            keyBoardList.add(listOf(InlineKeyboardButton("➕ Boshqa yo'nalish").apply { callbackData = PREFIX_NEW_ROUTE }))
+
+            val inlineKeyboard = InlineKeyboardMarkup().apply { keyboard = keyBoardList }
+
+            listOf(sendMessage(update, "\uD83D\uDDFA Yo'nalishni tanlang").apply { replyMarkup = inlineKeyboard })
+        }
     }
 
     private fun commandStart(update: Update): List<SendMessage> {
@@ -288,6 +310,8 @@ class UpdateHandler
         const val PREFIX_FROM_REGION = "FromRegion_"
         const val PREFIX_TO_REGION = "ToRegion_"
         const val PREFIX_DATE = "Date_"
+        const val PREFIX_ROUTE = "Route_"
+        const val PREFIX_NEW_ROUTE = "NewRoute"
         const val SAVE_ANNOUNCEMENT = "SaveAnnouncement"
         const val CHANGE = "Change"
         const val CHANNEL_ID_TAXI_BEKAT_TEST = "@taxi_bekat_test_chanel"
