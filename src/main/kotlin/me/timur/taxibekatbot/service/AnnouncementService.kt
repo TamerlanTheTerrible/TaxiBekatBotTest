@@ -32,7 +32,7 @@ class AnnouncementService
         val results = announcementRepository.getMostPopularRoutesByUserAndAnnouncementType(user.id!!, type.name)
         val destinations = ArrayList<String>()
         results.forEach {
-            destinations.add("${it[0]}-${it[0]}")
+            destinations.add("${it[0]}-${it[1]}")
         }
         return destinations
     }

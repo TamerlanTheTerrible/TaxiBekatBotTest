@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -34,7 +35,6 @@ class UpdateHandler
     private val announcementService: AnnouncementService,
     private val telegramUserService: TelegramUserService
 ){
-
     var announcementType: AnnouncementType? = null
     var from: SubRegion? = null
     var to: SubRegion? = null
@@ -55,7 +55,8 @@ class UpdateHandler
                 val callbackData = update.callbackQuery.data
                 when {
                     callbackData.contains(PREFIX_TYPE) -> chooseRoute(update)
-                    callbackData.contains(PREFIX_TYPE) -> chooseFromRegion(update)
+                    callbackData.contains(PREFIX_ROUTE) -> setRouteAndChooseDate(update)
+                    callbackData.contains(PREFIX_NEW_ROUTE) -> chooseFromRegion(update)
                     callbackData.contains(PREFIX_FROM_REGION) -> chooseFromSubRegion(update)
                     callbackData.contains(PREFIX_FROM_SUB_REGION) -> chooseToRegion(update)
                     callbackData.contains(PREFIX_TO_REGION) -> chooseToSubRegion(update)
@@ -71,6 +72,16 @@ class UpdateHandler
         }
 
         return messages
+    }
+
+    private fun setRouteAndChooseDate(update: Update): List<BotApiMethod<Message>> {
+        val fromSubRegLatinName = update.callbackQuery.data.substringAfter(PREFIX_ROUTE).substringBefore("-")
+        val toSubRegLatinName = update.callbackQuery.data.substringAfter("-")
+
+        from = subRegionRepository.findByNameLatin(fromSubRegLatinName)
+        to = subRegionRepository.findByNameLatin(toSubRegLatinName)
+
+        return chooseDate(update)
     }
 
     private fun saveAnnouncement(update: Update): List<BotApiMethod<Message>> {
@@ -136,16 +147,16 @@ class UpdateHandler
         date = LocalDate.parse(dateInString)
 
         val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
-                "\" \uD83D\uDCF1 Raqamini yuborish \" tugmachasini bosing ⬇️"
+                "\"\uD83D\uDCF1Raqamini yuborish \" tugmachasini bosing⬇"
         val keyboard = KeyboardButton().apply {
-            this.text = "\uD83D\uDCF1 Raqamini yuborish"
+            this.text = "\uD83D\uDCF1Raqamini yuborish"
             this.requestContact = true
         }
 
         val keyboardRow = KeyboardRow().apply { add(keyboard) }
         val markup = ReplyKeyboardMarkup().apply {
             this.keyboard = listOf(keyboardRow)
-            oneTimeKeyboard = false
+            oneTimeKeyboard = true
             resizeKeyboard = true
         }
 
@@ -153,8 +164,10 @@ class UpdateHandler
     }
 
     private fun chooseDate(update: Update): List<SendMessage> {
-        val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
-        to = subRegionRepository.findByNameLatin(name)
+        if(to == null) {
+            val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
+            to = subRegionRepository.findByNameLatin(name)
+        }
 
         val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
         var keyBoardRow = ArrayList<InlineKeyboardButton>()
@@ -171,7 +184,7 @@ class UpdateHandler
                 keyBoardRow = ArrayList()
             }
 
-            if (i % 7 == 1){
+            if (i % 5 == 1){
                 keyBoardList.add(keyBoardRow)
                 keyBoardRow = ArrayList()
             }
