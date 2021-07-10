@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -104,10 +103,11 @@ class UpdateHandler
         else {
             replyText = "$replyText\n\n Quyidagi e'lonlar sizga mos kelishi mumkin: "
             matchingAnnouncements.forEach {
-                replyText = "$replyText\n\n E'lon #${it.id}" +
-                        "\n Yo'nalish: ${it.from?.nameLatin} - ${it.to?.nameLatin} " +
-                        "\n Sana: ${it.tripDate!!.dayOfYear}-${it.tripDate!!.month}-${it.tripDate!!.dayOfYear}" +
-                        "\n Tel: ${it.telegramUser?.phone}"
+//                replyText = "$replyText\n\n E'lon #${it.id}" +
+//                        "\n Yo'nalish: ${it.from?.nameLatin} - ${it.to?.nameLatin} " +
+//                        "\n Sana: ${it.tripDate!!.dayOfYear}-${it.tripDate!!.month}-${it.tripDate!!.dayOfYear}" +
+//                        "\n Tel: ${it.telegramUser?.phone}"
+                replyText = "$CHANNEL_LINK_TAXI_BEKAT_TEST/${it.id}"
             }
         }
 
@@ -128,7 +128,7 @@ class UpdateHandler
 
         val replyText = "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
                 "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
-                "\n \uD83D\uDCC5 ${date!!.dayOfYear}-${date!!.month}-${date!!.dayOfYear}\"" +
+                "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
                 "\n \uD83D\uDCF1 Tel: $phone" +
                 "\n" +
                 "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
