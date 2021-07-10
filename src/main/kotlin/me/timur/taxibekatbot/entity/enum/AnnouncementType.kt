@@ -1,9 +1,9 @@
 package me.timur.taxibekatbot.entity.enum
 
-enum class AnnouncementType {
-    TAXI,
-    CLIENT,
-    POST;
+enum class AnnouncementType(val nameLatin: String, val emoji: String) {
+    TAXI("Taksi","\uD83D\uDE95"),
+    CLIENT("Yo'lovchi","\uD83D\uDE4B\uD83C\uDFFB\u200D♂"),
+    POST("Pochta","\uD83D\uDCEC");
 
     companion object {
 

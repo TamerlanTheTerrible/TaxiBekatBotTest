@@ -12,6 +12,7 @@ import me.timur.taxibekatbot.util.InvokeGetter
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.getFormattedPhone
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.ForwardMessage
@@ -35,6 +36,9 @@ class UpdateHandler
     private val announcementService: AnnouncementService,
     private val telegramUserService: TelegramUserService
 ){
+    @Value("\${bot.username}")
+    lateinit var botName: String
+
     var announcementType: AnnouncementType? = null
     var from: SubRegion? = null
     var to: SubRegion? = null
@@ -102,7 +106,7 @@ class UpdateHandler
             matchingAnnouncements.forEach {
                 replyText = "$replyText\n\n E'lon #${it.id}" +
                         "\n Yo'nalish: ${it.from?.nameLatin} - ${it.to?.nameLatin} " +
-                        "\n Sana: ${it.tripDate}" +
+                        "\n Sana: ${it.tripDate!!.dayOfYear}-${it.tripDate!!.month}-${it.tripDate!!.dayOfYear}" +
                         "\n Tel: ${it.telegramUser?.phone}"
             }
         }
@@ -122,20 +126,19 @@ class UpdateHandler
 
         telegramUserService.savePhone(update)
 
-        val replyText = "\n \uD83D\uDD0D Qidirilmoqda: $announcementType" +
-                "\n \uD83D\uDCE2 E'lon: " +
-                "\n \uD83C\uDF06 Yo'nalish: ${from?.nameLatin} - ${to?.nameLatin} " +
-                "\n \uD83D\uDCC5 Sana: $date" +
+        val replyText = "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
+                "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
+                "\n \uD83D\uDCC5 ${date!!.dayOfYear}-${date!!.month}-${date!!.dayOfYear}\"" +
                 "\n \uD83D\uDCF1 Tel: $phone" +
                 "\n" +
-                "\n #${(from?.nameLatin)?.substringBefore(" ")}" +
-                "${(to?.nameLatin)?.substringBefore(" ")}" +
-                "$announcementType"
+                "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
+                "\n" +
+                "\nYangi e’lon berish uchun quyidagi botdan foydalaning @$botName"
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(
             listOf(
-                InlineKeyboardButton("E'lonni joylash").apply { callbackData = SAVE_ANNOUNCEMENT },
-                InlineKeyboardButton("O'zgartirish").apply { callbackData = CHANGE }
+                InlineKeyboardButton("✅ E'lonni joylash").apply { callbackData = SAVE_ANNOUNCEMENT },
+                InlineKeyboardButton("✏️O'zgartirish").apply { callbackData = CHANGE }
             ))
         }
 
@@ -147,9 +150,9 @@ class UpdateHandler
         date = LocalDate.parse(dateInString)
 
         val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
-                "\"\uD83D\uDCF1Raqamini yuborish \" tugmachasini bosing⬇"
+                "\"\uD83D\uDCF1Raqamni yuborish\" tugmachasini bosing ⬇"
         val keyboard = KeyboardButton().apply {
-            this.text = "\uD83D\uDCF1Raqamini yuborish"
+            this.text = "\uD83D\uDCF1Raqamni yuborish"
             this.requestContact = true
         }
 
@@ -208,7 +211,7 @@ class UpdateHandler
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_SUB_REGION)
 
-        return listOf(sendMessage(update, "Qaysi shahar/tumanga").apply { this.replyMarkup = replyMarkup })
+        return listOf(sendMessage(update, "\uD83D\uDFE6 Qaysi shahar/tumanga").apply { this.replyMarkup = replyMarkup })
     }
 
     private fun chooseToRegion(update: Update): List<SendMessage> {
@@ -218,7 +221,7 @@ class UpdateHandler
         val list = regionRepository.findAll()
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_REGION)
 
-        return listOf(sendMessage(update, "Qaysi viloyatga").apply { this.replyMarkup = replyMarkup })
+        return listOf(sendMessage(update, "\uD83D\uDFE6 Qaysi viloyatga").apply { this.replyMarkup = replyMarkup })
     }
 
     private fun chooseFromSubRegion(update: Update): List<SendMessage> {
@@ -226,7 +229,7 @@ class UpdateHandler
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
 
-        return listOf(sendMessage(update, "Qaysi shahar/tumandan").apply { this.replyMarkup = replyMarkup })
+        return listOf(sendMessage(update, "\uD83D\uDFE5 Qaysi shahar/tumandan").apply { this.replyMarkup = replyMarkup })
     }
 
 
@@ -236,7 +239,7 @@ class UpdateHandler
         val list = regionRepository.findAll()
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_REGION)
 
-        return listOf(sendMessage(update, "Qaysi viloyatdan").apply { this.replyMarkup = replyMarkup })
+        return listOf(sendMessage(update, "\uD83D\uDFE5 Qaysi viloyatdan").apply { this.replyMarkup = replyMarkup })
     }
 
     private fun chooseRoute(update: Update): List<BotApiMethod<Message>> {
@@ -266,11 +269,13 @@ class UpdateHandler
         telegramUser = telegramUserService.saveUser(update)
 
         val keyboard = listOf( listOf(
-            InlineKeyboardButton("\uD83D\uDE96 Taksi izlash") .apply { callbackData = "${PREFIX_TYPE}TAXI" },
-            InlineKeyboardButton("\uD83D\uDE4B\uD83C\uDFFB\u200D♂️Yo'lovchi izlash").apply { callbackData = "${PREFIX_TYPE}CLIENT"}))
+            InlineKeyboardButton("${AnnouncementType.TAXI.emoji} ${AnnouncementType.TAXI.nameLatin}") .apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.TAXI.name}"},
+            InlineKeyboardButton("${AnnouncementType.CLIENT.emoji}️${AnnouncementType.CLIENT.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.CLIENT.name}"},
+            InlineKeyboardButton("${AnnouncementType.POST.emoji}️${AnnouncementType.POST.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.POST.name}"}
+        ))
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = keyboard }
-        val responseText = "\uD83D\uDC47 Quyidagilardan birini tanlang"
+        val responseText = "\uD83D\uDC47 Nima qidirayapsiz"
 
         ReplyKeyboardRemove(true)
 
