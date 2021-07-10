@@ -94,7 +94,13 @@ class UpdateHandler
         announcementService.save(announcement)
 
         var replyText = "#${announcement.id} raqamli e'lon joylashtirildi" +
-                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST"
+                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${announcement.id}{" +
+                "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
+                "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
+                "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
+                "\n \uD83D\uDCF1 Tel: $phone" +
+                "\n" +
+                "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType"
 
         val matchingAnnouncements = announcementService.matchAnnouncement(announcement)
 
@@ -103,10 +109,6 @@ class UpdateHandler
         else {
             replyText = "$replyText\n\n Quyidagi e'lonlar sizga mos kelishi mumkin: "
             matchingAnnouncements.forEach {
-//                replyText = "$replyText\n\n E'lon #${it.id}" +
-//                        "\n Yo'nalish: ${it.from?.nameLatin} - ${it.to?.nameLatin} " +
-//                        "\n Sana: ${it.tripDate!!.dayOfYear}-${it.tripDate!!.month}-${it.tripDate!!.dayOfYear}" +
-//                        "\n Tel: ${it.telegramUser?.phone}"
                 replyText += "\n\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${it.id}"
             }
         }
