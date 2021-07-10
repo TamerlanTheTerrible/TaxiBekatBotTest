@@ -107,7 +107,7 @@ class UpdateHandler
 //                        "\n Yo'nalish: ${it.from?.nameLatin} - ${it.to?.nameLatin} " +
 //                        "\n Sana: ${it.tripDate!!.dayOfYear}-${it.tripDate!!.month}-${it.tripDate!!.dayOfYear}" +
 //                        "\n Tel: ${it.telegramUser?.phone}"
-                replyText = "$CHANNEL_LINK_TAXI_BEKAT_TEST/${it.id}"
+                replyText += "\n\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${it.id}"
             }
         }
 
