@@ -10,7 +10,8 @@ import me.timur.taxibekatbot.service.AnnouncementService
 import me.timur.taxibekatbot.service.TelegramUserService
 import me.timur.taxibekatbot.util.InvokeGetter
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
-import me.timur.taxibekatbot.util.PhoneUtil.getFormattedPhone
+import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
+import me.timur.taxibekatbot.util.PhoneUtil.getFullPhoneNumber
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -94,11 +95,11 @@ class UpdateHandler
         announcementService.save(announcement)
 
         var replyText = "#${announcement.id} raqamli e'lon joylashtirildi" +
-                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${announcement.id}{" +
+                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${announcement.telegramMessageId}{" +
                 "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
                 "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
                 "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
-                "\n \uD83D\uDCF1 Tel: $phone" +
+                "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
                 "\n" +
                 "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType"
 
@@ -109,7 +110,7 @@ class UpdateHandler
         else {
             replyText = "$replyText\n\n Quyidagi e'lonlar sizga mos kelishi mumkin: "
             matchingAnnouncements.forEach {
-                replyText += "\n\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${it.id}"
+                replyText += "\n\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${it.telegramMessageId}"
             }
         }
 
@@ -124,14 +125,14 @@ class UpdateHandler
     }
 
     private fun reviewAnnouncement(update: Update): List<SendMessage> {
-        phone = getFormattedPhone(update)
+        phone = getFullPhoneNumber(update)
 
         telegramUserService.savePhone(update)
 
         val replyText = "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
                 "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
                 "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
-                "\n \uD83D\uDCF1 Tel: $phone" +
+                "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
                 "\n" +
                 "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
                 "\n" +
@@ -236,7 +237,8 @@ class UpdateHandler
 
 
     private fun chooseFromRegion(update: Update): List<SendMessage> {
-        announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
+        if (announcementType == null)
+            announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
 
         val list = regionRepository.findAll()
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_REGION)
@@ -245,7 +247,8 @@ class UpdateHandler
     }
 
     private fun chooseRoute(update: Update): List<BotApiMethod<Message>> {
-        announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
+        if (announcementType == null)
+            announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
 
         val routes = announcementService.getMostPopularRoutesByUserAndAnnouncementType(telegramUser!!, announcementType!!)
 

@@ -21,7 +21,7 @@ class TelegramUserService
 
     fun savePhone(update: Update) {
         val tgUser = getUser(update)
-        tgUser.phone = PhoneUtil.getFormattedPhone(update)
+        tgUser.phone = PhoneUtil.getFullPhoneNumber(update)
         save(tgUser)
     }
 

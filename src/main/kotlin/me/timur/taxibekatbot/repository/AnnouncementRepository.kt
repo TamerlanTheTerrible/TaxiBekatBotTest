@@ -19,8 +19,6 @@ interface AnnouncementRepository: JpaRepository<Announcement, Long> {
         value = "select \n" +
                 "(select sr.name_latin from sub_region sr where sr.id = a.from_sub_region) as from_sub_reg, \n" +
                 "(select sr.name_latin from sub_region sr where sr.id = a.to_sub_region) as to_sub_reg\n" +
-//                "a.from_sub_region,\n" +
-//                "a.to_sub_region\n" +
                 "from announcement a\n" +
                 "where a.user_id = :userId\n" +
                 "and a.look_for = :lookFor\n" +
