@@ -22,7 +22,9 @@ object PhoneUtil {
             true
         else {
             val phone = getPhone(update)
-            if (NumberUtils.isDigits(phone) && (phone.length == 9 || phone.length == 12))
+            if (NumberUtils.isDigits(phone) && phone.length == 9 && phone.startsWith("998"))
+                true
+            else if (NumberUtils.isDigits(phone) && phone.length == 12 && phone.startsWith("9"))
                 true
             else
                 throw InvalidInputException("Noto'g'ri telefon raqami formati")
