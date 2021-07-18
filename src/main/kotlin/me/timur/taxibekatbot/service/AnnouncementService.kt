@@ -2,7 +2,7 @@ package me.timur.taxibekatbot.service
 
 import me.timur.taxibekatbot.entity.Announcement
 import me.timur.taxibekatbot.entity.TelegramUser
-import me.timur.taxibekatbot.entity.enum.AnnouncementType
+import me.timur.taxibekatbot.enum.AnnouncementType
 import me.timur.taxibekatbot.repository.AnnouncementRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service

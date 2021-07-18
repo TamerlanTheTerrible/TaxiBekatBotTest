@@ -3,7 +3,7 @@ package me.timur.taxibekatbot.service.telegram
 import me.timur.taxibekatbot.entity.Announcement
 import me.timur.taxibekatbot.entity.SubRegion
 import me.timur.taxibekatbot.entity.TelegramUser
-import me.timur.taxibekatbot.entity.enum.AnnouncementType
+import me.timur.taxibekatbot.enum.AnnouncementType
 import me.timur.taxibekatbot.repository.RegionRepository
 import me.timur.taxibekatbot.repository.SubRegionRepository
 import me.timur.taxibekatbot.service.AnnouncementService

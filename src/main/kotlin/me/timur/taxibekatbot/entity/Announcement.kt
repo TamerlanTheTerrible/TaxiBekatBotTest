@@ -1,7 +1,7 @@
 package me.timur.taxibekatbot.entity
 
-import me.timur.taxibekatbot.entity.enum.AnnouncementStatus
-import me.timur.taxibekatbot.entity.enum.AnnouncementType
+import me.timur.taxibekatbot.enum.AnnouncementStatus
+import me.timur.taxibekatbot.enum.AnnouncementType
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.persistence.*

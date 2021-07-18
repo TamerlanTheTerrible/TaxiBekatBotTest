@@ -1,6 +1,4 @@
-package me.timur.taxibekatbot.entity.enum
-
-import me.timur.taxibekatbot.exception.InvalidInputException
+package me.timur.taxibekatbot.enum
 
 enum class AnnouncementType(val nameLatin: String, val emoji: String) {
     TAXI("Taksi","\uD83D\uDE95"),
