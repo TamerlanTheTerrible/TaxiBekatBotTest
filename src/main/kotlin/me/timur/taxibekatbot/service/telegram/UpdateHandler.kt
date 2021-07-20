@@ -13,7 +13,8 @@ import me.timur.taxibekatbot.util.InvokeGetter
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
 import me.timur.taxibekatbot.util.PhoneUtil.getFullPhoneNumber
-import me.timur.taxibekatbot.util.getStringByKey
+import me.timur.taxibekatbot.util.getStringAfter
+import me.timur.taxibekatbot.util.getStringBetween
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -49,6 +50,9 @@ class UpdateHandler
     var phone: String? = null
     var telegramUser: TelegramUser? = null
 
+    val taxiRouteNames = ArrayList<String>()
+    val taxiRoutesLimit = 3
+
     fun handle(update: Update): List<BotApiMethod<Message>>{
 
         val messages: List<BotApiMethod<Message>> = when {
@@ -63,6 +67,7 @@ class UpdateHandler
                 when {
                     callbackData.contains(PREFIX_TYPE) -> chooseRoute(update)
                     callbackData.contains(PREFIX_ROUTE) -> setRouteAndChooseDate(update)
+                    callbackData.contains(PREFIX_FRAME_ROUTE_HOME) -> chooseTaxiRoutes(update)
                     callbackData.contains(PREFIX_NEW_ROUTE) -> chooseFromRegion(update)
                     callbackData.contains(PREFIX_FROM_REGION) -> chooseFromSubRegion(update)
                     callbackData.contains(PREFIX_FROM_SUB_REGION) -> chooseToRegion(update)
@@ -82,8 +87,8 @@ class UpdateHandler
     }
 
     private fun setRouteAndChooseDate(update: Update): List<BotApiMethod<Message>> {
-        val fromSubRegLatinName = update.getStringByKey(PREFIX_ROUTE).substringBefore("-")
-        val toSubRegLatinName = update.getStringByKey("-")
+        val fromSubRegLatinName = update.getStringBetween(PREFIX_ROUTE, "-")
+        val toSubRegLatinName = update.getStringAfter("-")
 
         from = subRegionRepository.findByNameLatin(fromSubRegLatinName)
         to = subRegionRepository.findByNameLatin(toSubRegLatinName)
@@ -152,7 +157,7 @@ class UpdateHandler
     }
 
     private fun requestContact(update: Update): List<SendMessage> {
-        val dateInString = update.getStringByKey(PREFIX_DATE)
+        val dateInString = update.getStringAfter(PREFIX_DATE)
         date = LocalDate.parse(dateInString)
 
         val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
@@ -174,7 +179,7 @@ class UpdateHandler
 
     private fun chooseDate(update: Update): List<SendMessage> {
         if(to == null) {
-            val name = update.getStringByKey(PREFIX_TO_SUB_REGION)
+            val name = update.getStringAfter(PREFIX_TO_SUB_REGION)
             to = subRegionRepository.findByNameLatin(name)
         }
 
@@ -213,7 +218,7 @@ class UpdateHandler
     }
 
     private fun chooseToSubRegion(update: Update): List<SendMessage> {
-        val name = update.getStringByKey(PREFIX_TO_REGION)
+        val name = update.getStringAfter(PREFIX_TO_REGION)
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_SUB_REGION)
 
@@ -221,7 +226,7 @@ class UpdateHandler
     }
 
     private fun chooseToRegion(update: Update): List<SendMessage> {
-        val name = update.getStringByKey(PREFIX_FROM_SUB_REGION)
+        val name = update.getStringAfter(PREFIX_FROM_SUB_REGION)
         from = subRegionRepository.findByNameLatin(name)
 
         val list = regionRepository.findAll()
@@ -231,7 +236,7 @@ class UpdateHandler
     }
 
     private fun chooseFromSubRegion(update: Update): List<SendMessage> {
-        val name = update.getStringByKey(PREFIX_FROM_REGION)
+        val name = update.getStringAfter(PREFIX_FROM_REGION)
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
 
@@ -239,9 +244,19 @@ class UpdateHandler
     }
 
 
+    private fun chooseTaxiRoutes(update: Update): List<BotApiMethod<Message>> {
+        TODO("send subregion list first")
+        if (taxiRoutesLimit == 0)
+            return saveRoutes(taxiRouteNames)
+
+        taxiRouteNames.add(update.getStringAfter(PREFIX_FRAME_ROUTE_HOME))
+
+
+    }
+
     private fun chooseFromRegion(update: Update): List<SendMessage> {
         if (announcementType == null)
-            announcementType = AnnouncementType.findByName(update.getStringByKey(PREFIX_TYPE))
+            announcementType = AnnouncementType.findByName(update.getStringAfter(PREFIX_TYPE))
 
         val list = regionRepository.findAll()
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_REGION)
@@ -250,7 +265,7 @@ class UpdateHandler
     }
 
     private fun chooseRoute(update: Update): List<BotApiMethod<Message>> {
-        val type = AnnouncementType.valueOf(update.getStringByKey(PREFIX_TYPE))
+        val type = AnnouncementType.valueOf(update.getStringAfter(PREFIX_TYPE))
 
         return if(type == AnnouncementType.TAXI)
             chooseTaxiRoute(update)
@@ -269,7 +284,7 @@ class UpdateHandler
             keyBoardList.add(
                 listOf(
                     InlineKeyboardButton(
-                        "$home-$destination-$home").apply { callbackData = "$PREFIX_DATE$home" }
+                        "$home-$destination-$home").apply { callbackData = "$PREFIX_FRAME_ROUTE_HOME$home-$destination" }
                 )
             )
         }
@@ -280,7 +295,7 @@ class UpdateHandler
 
     private fun chooseClientRoute(update: Update): List<BotApiMethod<Message>> {
         if (announcementType == null)
-            announcementType = AnnouncementType.findByName(update.getStringByKey(PREFIX_TYPE))
+            announcementType = AnnouncementType.findByName(update.getStringAfter(PREFIX_TYPE))
 
         val routes = announcementService.getMostPopularRoutesByUserAndAnnouncementType(telegramUser!!, announcementType!!)
 
@@ -300,7 +315,6 @@ class UpdateHandler
     }
 
     private fun commandStart(update: Update): List<SendMessage> {
-
         clearVariables()
 
         telegramUser = telegramUserService.saveUser(update)

@@ -14,6 +14,12 @@ fun Update.getChatId() =
     else
         this.callbackQuery.message.chatId.toString()
 
-fun Update.getStringByKey(key: String) =
-    this.callbackQuery.data.substringAfter(key)
+fun Update.getStringAfter(afterString: String) =
+    this.callbackQuery.data.substringAfter(afterString)
+
+fun Update.getStringBefore(beforeString: String) =
+    this.callbackQuery.data.substringBefore(beforeString)
+
+fun Update.getStringBetween(afterString: String, beforeString: String) =
+    this.callbackQuery.data.substringAfter(afterString).substringBefore(beforeString)
 
