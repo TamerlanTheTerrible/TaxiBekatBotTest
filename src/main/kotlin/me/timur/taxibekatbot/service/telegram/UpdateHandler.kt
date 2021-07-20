@@ -12,6 +12,7 @@ import me.timur.taxibekatbot.util.InvokeGetter
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
 import me.timur.taxibekatbot.util.PhoneUtil.getFullPhoneNumber
+import me.timur.taxibekatbot.util.getStringByKey
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -79,8 +80,8 @@ class UpdateHandler
     }
 
     private fun setRouteAndChooseDate(update: Update): List<BotApiMethod<Message>> {
-        val fromSubRegLatinName = update.callbackQuery.data.substringAfter(PREFIX_ROUTE).substringBefore("-")
-        val toSubRegLatinName = update.callbackQuery.data.substringAfter("-")
+        val fromSubRegLatinName = update.getStringByKey(PREFIX_ROUTE).substringBefore("-")
+        val toSubRegLatinName = update.getStringByKey("-")
 
         from = subRegionRepository.findByNameLatin(fromSubRegLatinName)
         to = subRegionRepository.findByNameLatin(toSubRegLatinName)
@@ -149,7 +150,7 @@ class UpdateHandler
     }
 
     private fun requestContact(update: Update): List<SendMessage> {
-        val dateInString = update.callbackQuery.data.substringAfter(PREFIX_DATE)
+        val dateInString = update.getStringByKey(PREFIX_DATE)
         date = LocalDate.parse(dateInString)
 
         val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
@@ -171,7 +172,7 @@ class UpdateHandler
 
     private fun chooseDate(update: Update): List<SendMessage> {
         if(to == null) {
-            val name = update.callbackQuery.data.substringAfter(PREFIX_TO_SUB_REGION)
+            val name = update.getStringByKey(PREFIX_TO_SUB_REGION)
             to = subRegionRepository.findByNameLatin(name)
         }
 
@@ -210,7 +211,7 @@ class UpdateHandler
     }
 
     private fun chooseToSubRegion(update: Update): List<SendMessage> {
-        val name = update.callbackQuery.data.substringAfter(PREFIX_TO_REGION)
+        val name = update.getStringByKey(PREFIX_TO_REGION)
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_SUB_REGION)
 
@@ -218,7 +219,7 @@ class UpdateHandler
     }
 
     private fun chooseToRegion(update: Update): List<SendMessage> {
-        val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_SUB_REGION)
+        val name = update.getStringByKey(PREFIX_FROM_SUB_REGION)
         from = subRegionRepository.findByNameLatin(name)
 
         val list = regionRepository.findAll()
@@ -228,7 +229,7 @@ class UpdateHandler
     }
 
     private fun chooseFromSubRegion(update: Update): List<SendMessage> {
-        val name = update.callbackQuery.data.substringAfter(PREFIX_FROM_REGION)
+        val name = update.getStringByKey(PREFIX_FROM_REGION)
         val list = subRegionRepository.findAllByRegionNameLatin(name)
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
 
@@ -238,7 +239,7 @@ class UpdateHandler
 
     private fun chooseFromRegion(update: Update): List<SendMessage> {
         if (announcementType == null)
-            announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
+            announcementType = AnnouncementType.findByName(update.getStringByKey(PREFIX_TYPE))
 
         val list = regionRepository.findAll()
         val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_REGION)
@@ -248,7 +249,7 @@ class UpdateHandler
 
     private fun chooseRoute(update: Update): List<BotApiMethod<Message>> {
         if (announcementType == null)
-            announcementType = AnnouncementType.findByName(update.callbackQuery.data.substringAfter(PREFIX_TYPE))
+            announcementType = AnnouncementType.findByName(update.getStringByKey(PREFIX_TYPE))
 
         val routes = announcementService.getMostPopularRoutesByUserAndAnnouncementType(telegramUser!!, announcementType!!)
 

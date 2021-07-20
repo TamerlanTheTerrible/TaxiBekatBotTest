@@ -18,7 +18,7 @@ class Announcement {
     var dateCreated: LocalDateTime? = null
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "look_for")
+    @Column(name = "announcement_type")
     var announcementType: AnnouncementType? = null
 
     @Column(name = "trip_date")
