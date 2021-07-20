@@ -4,6 +4,7 @@ import me.timur.taxibekatbot.entity.Announcement
 import me.timur.taxibekatbot.entity.SubRegion
 import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.enum.AnnouncementType
+import me.timur.taxibekatbot.repository.FrameRouteRepository
 import me.timur.taxibekatbot.repository.RegionRepository
 import me.timur.taxibekatbot.repository.SubRegionRepository
 import me.timur.taxibekatbot.service.AnnouncementService
@@ -35,7 +36,8 @@ class UpdateHandler
     private val regionRepository: RegionRepository,
     private val subRegionRepository: SubRegionRepository,
     private val announcementService: AnnouncementService,
-    private val telegramUserService: TelegramUserService
+    private val telegramUserService: TelegramUserService,
+    private val frameRouteRepository: FrameRouteRepository
 ){
     @Value("\${bot.username}")
     lateinit var botName: String
@@ -182,7 +184,7 @@ class UpdateHandler
         var now = LocalDate.now()
         var currentMonth = 0
 
-        for (i in 0..9){
+        for (i in 0..4){
 
             if (now.month.value > currentMonth){
                 currentMonth = now.month.value
@@ -191,7 +193,7 @@ class UpdateHandler
                 keyBoardRow = ArrayList()
             }
 
-            if (i % 5 == 1){
+            if (i % 2 == 1){
                 keyBoardList.add(keyBoardRow)
                 keyBoardRow = ArrayList()
             }
@@ -248,6 +250,35 @@ class UpdateHandler
     }
 
     private fun chooseRoute(update: Update): List<BotApiMethod<Message>> {
+        val type = AnnouncementType.valueOf(update.getStringByKey(PREFIX_TYPE))
+
+        return if(type == AnnouncementType.TAXI)
+            chooseTaxiRoute(update)
+        else chooseClientRoute(update)
+    }
+
+    private fun chooseTaxiRoute(update: Update): List<BotApiMethod<Message>> {
+        val routes = frameRouteRepository.findAll()
+
+        val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
+
+        routes.forEach {
+            val home = it.home!!.nameLatin
+            val destination = it.destination!!.nameLatin
+
+            keyBoardList.add(
+                listOf(
+                    InlineKeyboardButton(
+                        "$home-$destination-$home").apply { callbackData = "$PREFIX_DATE$home" }
+                )
+            )
+        }
+
+        val inlineKeyboard = InlineKeyboardMarkup().apply { keyboard = keyBoardList }
+        return listOf(sendMessage(update, "\uD83D\uDDFA Qaysi yo'nalishda qatnaysiz").apply { replyMarkup = inlineKeyboard })
+    }
+
+    private fun chooseClientRoute(update: Update): List<BotApiMethod<Message>> {
         if (announcementType == null)
             announcementType = AnnouncementType.findByName(update.getStringByKey(PREFIX_TYPE))
 
@@ -275,10 +306,9 @@ class UpdateHandler
         telegramUser = telegramUserService.saveUser(update)
 
         val keyboard = listOf( listOf(
-            InlineKeyboardButton("${AnnouncementType.TAXI.emoji} ${AnnouncementType.TAXI.nameLatin}") .apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.TAXI.name}"},
-            InlineKeyboardButton("${AnnouncementType.CLIENT.emoji}️${AnnouncementType.CLIENT.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.CLIENT.name}"},
-            InlineKeyboardButton("${AnnouncementType.POST.emoji}️${AnnouncementType.POST.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.POST.name}"}
-        ))
+            InlineKeyboardButton("${AnnouncementType.TAXI.emoji} ${AnnouncementType.TAXI.nameLatin}") .apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.TAXI.name}"}),
+            listOf(InlineKeyboardButton("${AnnouncementType.CLIENT.emoji}️${AnnouncementType.CLIENT.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.CLIENT.name}"}),
+            listOf(InlineKeyboardButton("${AnnouncementType.POST.emoji}️${AnnouncementType.POST.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.POST.name}"}))
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = keyboard }
         val responseText = "\uD83D\uDC47 Nima qidirayapsiz"
@@ -335,6 +365,7 @@ class UpdateHandler
         const val PREFIX_TO_REGION = "ToRegion_"
         const val PREFIX_DATE = "Date_"
         const val PREFIX_ROUTE = "Route_"
+        const val PREFIX_FRAME_ROUTE_HOME = "FrameRouteFrom"
         const val PREFIX_NEW_ROUTE = "NewRoute"
         const val SAVE_ANNOUNCEMENT = "SaveAnnouncement"
         const val CHANGE = "Change"

@@ -21,6 +21,9 @@ class Route {
     @JoinColumn(name = "destination")
     var destination: SubRegion? = null
 
+    @Column(name="deleted")
+    var deleted: Boolean = false
+
     constructor(
         home: SubRegion,
         destination: SubRegion
