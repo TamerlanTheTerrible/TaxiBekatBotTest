@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface CarRepository: JpaRepository<Car, Long> {
+
+    fun findByNameLatin(name: String): Car?
 }

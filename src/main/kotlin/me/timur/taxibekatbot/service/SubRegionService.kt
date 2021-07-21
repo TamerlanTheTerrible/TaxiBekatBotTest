@@ -11,6 +11,18 @@ class SubRegionService
 @Autowired constructor(
     private val subRegionRepo: SubRegionRepository
 ){
+    fun findAllByNames(names: Collection<String>): ArrayList<SubRegion> {
+        val subRegions = ArrayList<SubRegion>()
+
+        names.forEach {
+            val subRegion = findByNameLatin(it)
+            if (subRegion != null)
+                subRegions.add(subRegion)
+        }
+
+        return subRegions
+    }
+
     fun findByNameLatin(name: String): SubRegion? {
         return subRegionRepo.findByNameLatin(name)
     }

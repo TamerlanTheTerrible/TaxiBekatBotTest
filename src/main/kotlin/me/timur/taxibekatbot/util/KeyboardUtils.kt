@@ -5,7 +5,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 
 object KeyboardUtils {
-
     fun createInlineButtonList(text: String, callback: String): List<InlineKeyboardButton> =
         listOf(createInlineButton(text, callback))
 
@@ -13,22 +12,7 @@ object KeyboardUtils {
         InlineKeyboardButton(text).apply { callbackData = callback }
 }
 
-fun ArrayList<*>.generateInlineKeyboardMarkup(text: String, callbackData: String): InlineKeyboardMarkup {
-    val keyboard = this.generateInlineKeyboard(text, callbackData)
-    return InlineKeyboardMarkup().apply { this.keyboard = keyboard }
-}
-
-fun ArrayList<*>.generateInlineKeyboard(text: String, callbackData: String): ArrayList<List<InlineKeyboardButton>>{
-    val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
-
-    this.forEach {
-        val keyboardButtons = KeyboardUtils.createInlineButtonList(text, callbackData)
-        keyBoardList.add(keyboardButtons)
-    }
-    return keyBoardList
-}
-
-fun ArrayList<*>.toInlineKeyBoard(
+fun List<*>.toInlineKeyBoard(
     callbackDataPrefix: String? = null,
     fieldName: String? = null
 ): InlineKeyboardMarkup{
@@ -38,7 +22,7 @@ fun ArrayList<*>.toInlineKeyBoard(
     val keyboardTextField = fieldName ?: "nameLatin"
 
     this.forEachIndexed { index, it ->
-        val fieldValue = InvokeGetter.invokeGetter(it, keyboardTextField).toString()
+        val fieldValue = InvokeGetter.invokeGetter(it!!, keyboardTextField).toString()
         val cbData = if (callbackDataPrefix == null) fieldValue else "${callbackDataPrefix}${fieldValue}"
 
         keyBoardRow.add(createInlineButton(fieldValue, cbData))

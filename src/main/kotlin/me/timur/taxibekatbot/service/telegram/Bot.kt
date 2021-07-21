@@ -34,8 +34,6 @@ class Bot: TelegramLongPollingBot(){
         val chatId = if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
         val messageId = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
 
-        println("hello")
-
         try {
             val messages = updateHandler!!.handle(update)
 

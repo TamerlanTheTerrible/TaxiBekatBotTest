@@ -11,7 +11,7 @@ class Route {
 
     @ManyToOne
     @JoinColumn(name = "driver")
-    var driver: TelegramUser? = null
+    var driver: Driver? = null
 
     @ManyToOne
     @JoinColumn(name = "home")
@@ -27,7 +27,7 @@ class Route {
     constructor(
         home: SubRegion,
         destination: SubRegion,
-        driver: TelegramUser,
+        driver: Driver,
     ){
         this.home = home
         this.destination = destination

@@ -1,5 +1,6 @@
 package me.timur.taxibekatbot.service
 
+import me.timur.taxibekatbot.entity.Driver
 import me.timur.taxibekatbot.entity.Route
 import me.timur.taxibekatbot.entity.SubRegion
 import me.timur.taxibekatbot.entity.TelegramUser
@@ -14,19 +15,28 @@ class RouteService
 ){
 
     fun createRoutesFromSubRegions(
-        subRegionSet: HashSet<SubRegion>,
+        subRegionSet: Collection<SubRegion>,
         destination: SubRegion,
-        telegramUser: TelegramUser
+        driver: Driver
     ): List<Route> {
 
         val routeList = ArrayList<Route>()
 
         subRegionSet.forEach {
-            routeList.add(
-                Route(it, destination, telegramUser)
-            )
+            routeList.add(Route(it, destination, driver))
         }
 
         return routeRepo.saveAll(routeList)
+    }
+
+
+    fun deletePreviousRoutesOfDriver(driver: Driver) {
+        val previousRoutes = routeRepo.findAllByDriver(driver)
+
+        previousRoutes.forEach {
+            it.deleted = true
+        }
+
+        routeRepo.saveAll(previousRoutes)
     }
 }
