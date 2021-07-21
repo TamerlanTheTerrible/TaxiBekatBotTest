@@ -1,15 +1,20 @@
 package me.timur.taxibekatbot.service.telegram
 
 import me.timur.taxibekatbot.entity.Announcement
+import me.timur.taxibekatbot.entity.Route
 import me.timur.taxibekatbot.entity.SubRegion
 import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.enum.AnnouncementType
+import me.timur.taxibekatbot.repository.CarRepository
 import me.timur.taxibekatbot.repository.FrameRouteRepository
 import me.timur.taxibekatbot.repository.RegionRepository
-import me.timur.taxibekatbot.repository.SubRegionRepository
 import me.timur.taxibekatbot.service.AnnouncementService
+import me.timur.taxibekatbot.service.RouteService
+import me.timur.taxibekatbot.service.SubRegionService
 import me.timur.taxibekatbot.service.TelegramUserService
 import me.timur.taxibekatbot.util.InvokeGetter
+import me.timur.taxibekatbot.util.KeyboardUtils.createInlineButton
+import me.timur.taxibekatbot.util.KeyboardUtils.createInlineButtonList
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
 import me.timur.taxibekatbot.util.PhoneUtil.getFullPhoneNumber
@@ -31,15 +36,18 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
 import java.time.LocalDate
+import java.util.HashSet
 
 @Component
 class UpdateHandler
 @Autowired constructor(
     private val regionRepository: RegionRepository,
-    private val subRegionRepository: SubRegionRepository,
+    private val subRegionService: SubRegionService,
     private val announcementService: AnnouncementService,
     private val telegramUserService: TelegramUserService,
-    private val frameRouteRepository: FrameRouteRepository
+    private val frameRouteRepository: FrameRouteRepository,
+    private val routeService: RouteService,
+    private val carRepository: CarRepository
 ){
     @Value("\${bot.username}")
     lateinit var botName: String
@@ -51,8 +59,11 @@ class UpdateHandler
     var phone: String? = null
     var telegramUser: TelegramUser? = null
 
-    val taxiRouteNames = ArrayList<String>()
-    val taxiRoutesLimit = 3
+    var taxiFrameRoute: String? = null
+    val subRegionNameSet = ArrayList<String>()
+    val subRegionSet = HashSet<SubRegion>()
+    var taxiRoutesLimit = 3
+    val taxiRoutes = ArrayList<Route>()
 
     fun handle(update: Update): List<BotApiMethod<Message>>{
 
@@ -60,6 +71,7 @@ class UpdateHandler
             update.hasMessage() -> when {
                     update.message.text == "/start" -> commandStart(update)
                     containsPhone(update) -> reviewAnnouncement(update)
+
                     else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
 
@@ -69,6 +81,7 @@ class UpdateHandler
                     callbackData.contains(PREFIX_TYPE) -> chooseRoute(update)
                     callbackData.contains(PREFIX_ROUTE_CLIENT) -> setRouteAndChooseDate(update)
                     callbackData.contains(PREFIX_FRAME_ROUTE) -> chooseFirstTaxiRoute(update)
+                    callbackData.contains(PREFIX_ROUTE_TAXI) -> chooseOtherTaxiRoutes(update)
                     callbackData.contains(PREFIX_NEW_ROUTE_CLIENT) -> chooseFromRegion(update)
                     callbackData.contains(PREFIX_FROM_REGION) -> chooseFromSubRegion(update)
                     callbackData.contains(PREFIX_FROM_SUB_REGION) -> chooseToRegion(update)
@@ -91,8 +104,8 @@ class UpdateHandler
         val fromSubRegLatinName = update.getStringBetween(PREFIX_ROUTE_CLIENT, "-")
         val toSubRegLatinName = update.getStringAfter("-")
 
-        from = subRegionRepository.findByNameLatin(fromSubRegLatinName)
-        to = subRegionRepository.findByNameLatin(toSubRegLatinName)
+        from = subRegionService.findByNameLatin(fromSubRegLatinName)
+        to = subRegionService.findByNameLatin(toSubRegLatinName)
 
         return chooseDate(update)
     }
@@ -147,8 +160,8 @@ class UpdateHandler
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(
             listOf(
-                InlineKeyboardButton("✅ E'lonni joylash").apply { callbackData = SAVE_ANNOUNCEMENT },
-                InlineKeyboardButton("✏️O'zgartirish").apply { callbackData = CHANGE }
+                createInlineButton("✅ E'lonni joylash", SAVE_ANNOUNCEMENT),
+                createInlineButton("✏️O'zgartirish", CHANGE)
             ))
         }
 
@@ -179,7 +192,7 @@ class UpdateHandler
     private fun chooseDate(update: Update): List<SendMessage> {
         if(to == null) {
             val name = update.getStringAfter(PREFIX_TO_SUB_REGION)
-            to = subRegionRepository.findByNameLatin(name)
+            to = subRegionService.findByNameLatin(name)
         }
 
         val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
@@ -192,7 +205,7 @@ class UpdateHandler
 
             if (now.month.value > currentMonth){
                 currentMonth = now.month.value
-                keyBoardRow.add(InlineKeyboardButton(now.month.name).apply { callbackData = PREFIX_TO_SUB_REGION })
+                keyBoardRow.add(createInlineButton(now.month.name, PREFIX_TO_SUB_REGION))
                 keyBoardList.add(keyBoardRow)
                 keyBoardRow = ArrayList()
             }
@@ -202,7 +215,7 @@ class UpdateHandler
                 keyBoardRow = ArrayList()
             }
 
-            keyBoardRow.add(InlineKeyboardButton(now.dayOfMonth.toString()).apply { callbackData = "$PREFIX_DATE$now"})
+            keyBoardRow.add(createInlineButton(now.dayOfMonth.toString(), "$PREFIX_DATE$now"))
 
             now = now.plusDays(1)
         }
@@ -218,37 +231,73 @@ class UpdateHandler
 
     private fun chooseToSubRegion(update: Update): List<SendMessage> {
         val name = update.getStringAfter(PREFIX_TO_REGION)
-        val list = subRegionRepository.findAllByRegionNameLatin(name)
-        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_SUB_REGION)
+        val list = subRegionService.findAllByRegionNameLatin(name)
+        val replyMarkup = toInlineKeyBoard(list, PREFIX_TO_SUB_REGION)
 
         return listOf(sendMessage(update, "\uD83D\uDFE6 Qaysi shahar/tumanga", replyMarkup))
     }
 
     private fun chooseToRegion(update: Update): List<SendMessage> {
         val name = update.getStringAfter(PREFIX_FROM_SUB_REGION)
-        from = subRegionRepository.findByNameLatin(name)
+        from = subRegionService.findByNameLatin(name)
 
         val list = regionRepository.findAll()
-        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_TO_REGION)
+        val replyMarkup = toInlineKeyBoard(list, PREFIX_TO_REGION)
 
         return listOf(sendMessage(update, "\uD83D\uDFE6 Qaysi viloyatga", replyMarkup))
     }
 
     private fun chooseFromSubRegion(update: Update): List<SendMessage> {
         val name = update.getStringAfter(PREFIX_FROM_REGION)
-        val list = subRegionRepository.findAllByRegionNameLatin(name)
-        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_SUB_REGION)
+        val list = subRegionService.findAllByRegionNameLatin(name)
+        val replyMarkup = toInlineKeyBoard(list, PREFIX_FROM_SUB_REGION)
 
         return listOf(sendMessage(update, "\uD83D\uDFE5 Qaysi shahar/tumandan", replyMarkup))
     }
 
+    private fun saveTaxiRoutes(subRegionSet: HashSet<SubRegion>): List<BotApiMethod<Message>> {
+        val destinationRegionName = taxiFrameRoute!!.substringAfter("-").substringBeforeLast("-")
+        val destination = subRegionService.findMainSubRegion(destinationRegionName)
+
+        val routes = routeService.createRoutesFromSubRegions(subRegionSet, destination, telegramUser!!)
+
+        val keyboard = listOf()
+
+        val markup = InlineKeyboardMarkup().apply { this.keyboard = keyboard }
+        val responseText = "Moshina rusumingiz"
+    }
+
+    private fun chooseTaxiCar(): List<BotApiMethod<Message>> {
+        val cars = carRepository.findAll()
+    }
+
+    private fun chooseOtherTaxiRoutes(update: Update): List<BotApiMethod<Message>> {
+        taxiRoutesLimit--
+
+        if (taxiRoutesLimit == 0)
+            return chooseTaxiCar()
+
+        val subRegionName = update.getStringAfter(PREFIX_ROUTE_TAXI)
+        subRegionNameSet.add(subRegionName)
+
+        val destinationRegionName = taxiFrameRoute!!.substringAfter("-").substringBeforeLast("-")
+        val subregions = subRegionService.findAllByRegionNameLatin(destinationRegionName)
+            .filter { it.nameLatin != subRegionName }
+
+        val markup = toInlineKeyBoard(subregions, PREFIX_ROUTE_TAXI)
+        val text = "O'zingiz qatnaydigan tuman/shaharni " +
+                "\n\n yan $taxiRoutesLimit ta tanlashingiz mumkin"
+
+        return listOf(sendMessage(update, text, markup))
+    }
 
     private fun chooseFirstTaxiRoute(update: Update): List<BotApiMethod<Message>> {
         val regionName = update.getStringBetween(PREFIX_FRAME_ROUTE, "-")
-        val subregions = subRegionRepository.findAllByRegionNameLatin(regionName)
+        val subregions = subRegionService.findAllByRegionNameLatin(regionName)
 
-        val markup = createMarkupFromPlaceList(subregions, PREFIX_ROUTE_TAXI)
-        val text = "O'zingiz qatnaydigan 3 ta tuman/shaharni tanlang"
+        val markup = toInlineKeyBoard(subregions, PREFIX_ROUTE_TAXI)
+        val text = "O'zingiz qatnaydigan tuman/shaharni " +
+                "\n\n $taxiRoutesLimit ta tanlashingiz mumkin"
 
         return listOf(sendMessage(update, text, markup))
     }
@@ -258,7 +307,7 @@ class UpdateHandler
             announcementType = AnnouncementType.findByName(update.getStringAfter(PREFIX_TYPE))
 
         val list = regionRepository.findAll()
-        val replyMarkup = createMarkupFromPlaceList(list, PREFIX_FROM_REGION)
+        val replyMarkup = toInlineKeyBoard(list, PREFIX_FROM_REGION)
 
         return listOf(sendMessage(update, "\uD83D\uDFE5 Qaysi viloyatdan", replyMarkup))
     }
@@ -272,20 +321,17 @@ class UpdateHandler
     }
 
     private fun chooseTaxiRoute(update: Update): List<BotApiMethod<Message>> {
-        val routes = frameRouteRepository.findAll()
+        val frameRoutes = frameRouteRepository.findAll()
 
         val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
 
-        routes.forEach {
+        frameRoutes.forEach {
             val home = it.home!!.nameLatin
             val destination = it.destination!!.nameLatin
+            taxiFrameRoute = "$home-$destination-$home"
 
-            keyBoardList.add(
-                listOf(
-                    InlineKeyboardButton(
-                        "$home-$destination-$home").apply { callbackData = "$PREFIX_FRAME_ROUTE$home-$destination" }
-                )
-            )
+            val buttons = createInlineButtonList(taxiFrameRoute!!, "$PREFIX_FRAME_ROUTE$taxiFrameRoute")
+            keyBoardList.add(buttons)
         }
 
         val inlineKeyboard = InlineKeyboardMarkup().apply { keyboard = keyBoardList }
@@ -303,9 +349,11 @@ class UpdateHandler
         else {
             val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
             routes.forEach {
-                keyBoardList.add(listOf(InlineKeyboardButton("✅ $it").apply { callbackData = "$PREFIX_ROUTE_CLIENT$it" }))
+                val buttons = createInlineButtonList("✅ $it", "$PREFIX_ROUTE_CLIENT$it")
+                keyBoardList.add(buttons)
             }
-            keyBoardList.add(listOf(InlineKeyboardButton("➕ Boshqa yo'nalish").apply { callbackData = PREFIX_NEW_ROUTE_CLIENT }))
+            val anotherRouteButton = createInlineButtonList("➕ Boshqa yo'nalish", PREFIX_NEW_ROUTE_CLIENT)
+            keyBoardList.add(anotherRouteButton)
 
             val inlineKeyboard = InlineKeyboardMarkup().apply { keyboard = keyBoardList }
 
@@ -318,10 +366,10 @@ class UpdateHandler
 
         telegramUser = telegramUserService.saveUser(update)
 
-        val keyboard = listOf( listOf(
-            InlineKeyboardButton("${AnnouncementType.TAXI.emoji} ${AnnouncementType.TAXI.nameLatin}") .apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.TAXI.name}"}),
-            listOf(InlineKeyboardButton("${AnnouncementType.CLIENT.emoji}️${AnnouncementType.CLIENT.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.CLIENT.name}"}),
-            listOf(InlineKeyboardButton("${AnnouncementType.POST.emoji}️${AnnouncementType.POST.nameLatin}").apply { callbackData = "${PREFIX_TYPE}${AnnouncementType.POST.name}"}))
+        val keyboard = listOf(
+            createInlineButtonList("${AnnouncementType.TAXI.emoji} Men haydovchiman", "${PREFIX_TYPE}${AnnouncementType.TAXI.name}"),
+            createInlineButtonList("${AnnouncementType.CLIENT.emoji}️Menga haydovchi kerak", "${PREFIX_TYPE}${AnnouncementType.CLIENT.name}"),
+            createInlineButtonList("${AnnouncementType.POST.emoji}️Pochta jo'natmoqchiman", "${PREFIX_TYPE}${AnnouncementType.POST.name}"))
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = keyboard }
         val responseText = "\uD83D\uDC47 Nima qidirayapsiz"
@@ -340,10 +388,15 @@ class UpdateHandler
     private fun getChatId(update: Update) =
         if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
 
-    private fun createMarkupFromPlaceList(objectList: List<Any>, callbackDataPrefix: String? = null): InlineKeyboardMarkup{
+    private fun toInlineKeyBoard(
+        objectList: List<Any>,
+        callbackDataPrefix: String? = null,
+        fieldName: String? = null
+    ): InlineKeyboardMarkup{
+
         val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
         var keyBoardRow = ArrayList<InlineKeyboardButton>()
-        val keyboardTextField = "nameLatin"
+        val keyboardTextField = fieldName ?: "nameLatin"
 
         objectList.forEachIndexed { index, it ->
             val fieldValue = InvokeGetter.invokeGetter(it, keyboardTextField).toString()
@@ -380,7 +433,8 @@ class UpdateHandler
         const val PREFIX_ROUTE_CLIENT = "RouteClient_"
         const val PREFIX_ROUTE_TAXI = "RouteTaxi_"
         const val PREFIX_FRAME_ROUTE = "FrameRoute"
-        const val PREFIX_NEW_ROUTE_CLIENT = "NewRouteClient"
+        const val PREFIX_NEW_ROUTE_CLIENT = "NewRouteClient_"
+        const val PREFIX_CAR = "Car_"
         const val SAVE_ANNOUNCEMENT = "SaveAnnouncement"
         const val CHANGE = "Change"
         const val CHANNEL_ID_TAXI_BEKAT_TEST = "@taxi_bekat_test_chanel"

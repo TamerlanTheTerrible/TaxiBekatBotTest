@@ -4,5 +4,6 @@ import java.lang.RuntimeException
 
 class CustomException
 
-class InvalidInputException(message: String): RuntimeException() {
-}
+class InvalidInputException(message: String): RuntimeException(message)
+
+class DataNotFoundException(message: String): RuntimeException(message)

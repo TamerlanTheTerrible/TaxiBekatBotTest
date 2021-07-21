@@ -1,6 +1,5 @@
 package me.timur.taxibekatbot.entity
 
-import me.timur.taxibekatbot.enum.UserStatus
 import org.telegram.telegrambots.meta.api.objects.User
 import javax.persistence.*
 
@@ -30,14 +29,12 @@ class TelegramUser {
     @Column(name = "chat_id")
     var chatId: String? = null
 
-    @Column(name = "status")
-    var status: UserStatus? = null
-
-    constructor(user: User){
+    constructor(user: User, chatId: String? = null){
         this.telegramId = user.id
         this.userName = user.userName
         this.lastName = user.lastName
         this.firstName = user.firstName
+        this.chatId = chatId
     }
 
 }

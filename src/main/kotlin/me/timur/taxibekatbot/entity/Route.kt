@@ -26,9 +26,11 @@ class Route {
 
     constructor(
         home: SubRegion,
-        destination: SubRegion
+        destination: SubRegion,
+        driver: TelegramUser,
     ){
         this.home = home
         this.destination = destination
+        this.driver = driver
     }
 }

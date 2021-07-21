@@ -1,11 +1,9 @@
 package me.timur.taxibekatbot.repository
 
-import me.timur.taxibekatbot.entity.FrameRoute
+import me.timur.taxibekatbot.entity.Car
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface FrameRouteRepository: JpaRepository<FrameRoute, Long> {
-
-    fun findAllByDeletedFalse(): List<FrameRoute>
+interface CarRepository: JpaRepository<Car, Long> {
 }
