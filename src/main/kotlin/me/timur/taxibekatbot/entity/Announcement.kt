@@ -43,6 +43,27 @@ class Announcement {
     @Column(name = "status")
     var status: AnnouncementStatus = AnnouncementStatus.ACTIVE
 
+
+//    TODO("replace all driver related fields with one driver field + a status field")
+    @ManyToMany
+    @JoinColumn(name = "notified_drivers")
+    var notifiedDrivers: List<Driver>? = null
+
+    @ManyToMany
+    @JoinColumn(name = "accepted_drivers")
+    var acceptedDrivers: List<Driver>? = null
+
+    @ManyToMany
+    @JoinColumn(name = "denied_drivers")
+    var deniedDrivers: List<Driver>? = null
+
+    @ManyToOne
+    @JoinColumn(name = "confirmed_driver")
+    var confirmedDriver: Driver? = null
+
+
+
+
     constructor(
         announcementType: AnnouncementType?,
         tripDate: LocalDate?,

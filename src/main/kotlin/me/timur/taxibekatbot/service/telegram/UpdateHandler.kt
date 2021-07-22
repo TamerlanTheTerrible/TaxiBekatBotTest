@@ -112,15 +112,7 @@ class UpdateHandler
         val announcement = Announcement(announcementType, date, from, to, telegramUser, messageId)
         announcementService.save(announcement)
 
-        val replyTextClient = "#${announcement.id} raqamli e'lon joylashtirildi" +
-                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${announcement.telegramMessageId}{" +
-                "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
-                "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
-                "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
-                "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
-                "\n" +
-                "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
-                "\n" +
+        val replyTextClient = "#${announcement.id} raqamli e'lon joylashtirildi ${generateAnnouncementText()}" +
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
 

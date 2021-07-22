@@ -1,5 +1,8 @@
 package me.timur.taxibekatbot.enum
 
 enum class AnnouncementStatus {
-    ACTIVE, DEPRECATED, DELETED
+    ACTIVE,
+    NOT_ACTIVE,
+    DEPRECATED,
+    DELETED
 }
