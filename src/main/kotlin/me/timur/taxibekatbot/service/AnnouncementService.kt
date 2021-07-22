@@ -18,7 +18,7 @@ class AnnouncementService
 
     fun matchAnnouncement(anc: Announcement): List<Announcement> {
         return announcementRepository.findAllByAnnouncementTypeAndTripDateAndFromAndTo(
-            type = if(anc.announcementType!! == AnnouncementType.TAXI) AnnouncementType.CLIENT else AnnouncementType.TAXI,
+            type = anc.announcementType!!,
             date = anc.tripDate!!,
             from = anc.from!!,
             to = anc.to!!

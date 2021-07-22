@@ -1,5 +1,6 @@
 package me.timur.taxibekatbot.service
 
+import me.timur.taxibekatbot.entity.Announcement
 import me.timur.taxibekatbot.entity.Driver
 import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.repository.DriverRepository
@@ -13,6 +14,13 @@ class DriverService
     private val driverRepository: DriverRepository,
     private val telegramUserService: TelegramUserService
 ){
+    fun findAllByMatchingRoute(announcement: Announcement): List<Driver> {
+        return driverRepository.findAllByMatchingRoute(
+            announcement.from!!.id!!,
+            announcement.to!!.id!!
+        )
+    }
+
     fun saveOrUpdate(driver: Driver): Driver {
         val driverFromDB = driverRepository.findByTelegramUser(driver.telegramUser)
 

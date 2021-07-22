@@ -112,32 +112,48 @@ class UpdateHandler
         val announcement = Announcement(announcementType, date, from, to, telegramUser, messageId)
         announcementService.save(announcement)
 
-        var replyText = "#${announcement.id} raqamli e'lon joylashtirildi" +
+        val replyTextClient = "#${announcement.id} raqamli e'lon joylashtirildi" +
                 "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${announcement.telegramMessageId}{" +
                 "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
                 "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
                 "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
                 "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
                 "\n" +
-                "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType"
+                "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
+                "\n" +
+                "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
+                "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
 
-        val matchingAnnouncements = announcementService.matchAnnouncement(announcement)
+        val messageToClient = sendMessage(update, replyTextClient, ReplyKeyboardRemove(true))
+        val messageToForward = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, getChatId(update), messageId)
+        val notificationForDrivers = notifyMatchingDrivers(announcement)
 
-        if (matchingAnnouncements.isEmpty())
-           replyText = "$replyText\n\n hozircha mos e'lon topilmadi."
-        else {
-            replyText = "$replyText\n\n Quyidagi e'lonlar sizga mos kelishi mumkin: "
-            matchingAnnouncements.forEach {
-                replyText += "\n\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${it.telegramMessageId}"
-            }
+        val messages = arrayListOf(messageToClient, messageToForward)
+        messages.addAll(notificationForDrivers)
+
+        return messages
+    }
+
+    private fun notifyMatchingDrivers(announcement: Announcement): List<BotApiMethod<Message>> {
+        val drivers = driverService.findAllByMatchingRoute(announcement)
+
+        val notifications = arrayListOf<BotApiMethod<Message>>()
+
+        drivers.forEach {
+            val text = "Quyidagi mijoz haydovchi qidirmoqda. " +
+                    "\n\n - Ushbu so'rovni qabul qilsangiz mijoz bilan bog'laning. " +
+                    "\n - Kelushuvga kelganingizdan so'ng \"Qabul qilish\" tugmasini bosing" +
+                    "\n - Agar so'rov mijoz tomonidanam tasdiqlansa sizga xabar keladi" +
+                    "\n ${generateAnnouncementText()}"
+            val keyboard = InlineKeyboardMarkup().apply { this.keyboard = listOf(
+                createInlineButtonList("✅ Qabul qilish", ACCEPT_CLIENT),
+                createInlineButtonList("❌ Rad qilish", DENY_CLIENT)
+            )}
+            val notification = sendMessage(it.telegramUser.chatId!!, text, keyboard)
+            notifications.add(notification)
         }
 
-        val chatId = getChatId(update)
-        val forwardMessage = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, chatId, messageId)
-
-        return listOf(
-            sendMessage(update, replyText, ReplyKeyboardRemove(true)),
-            forwardMessage)
+        return notifications
     }
 
     private fun reviewAnnouncement(update: Update): List<SendMessage> {
@@ -145,13 +161,7 @@ class UpdateHandler
 
         telegramUserService.savePhone(update)
 
-        val replyText = "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
-                "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
-                "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
-                "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
-                "\n" +
-                "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
-                "\n" +
+        val replyText = generateAnnouncementText() +
                 "\nYangi e’lon berish uchun quyidagi botdan foydalaning @$botName"
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(
@@ -309,7 +319,7 @@ class UpdateHandler
 
         val markup = subregions.toInlineKeyBoard(PREFIX_ROUTE_TAXI, "nameLatin")
         val text = "O'zingiz qatnaydigan tuman/shaharni " +
-                "\n\n yan $taxiRoutesLimit ta tanlashingiz mumkin"
+                "\n\n yana $taxiRoutesLimit ta tanlashingiz mumkin"
 
         return listOf(sendMessage(update, text, markup))
     }
@@ -405,9 +415,11 @@ class UpdateHandler
 
     private fun sendMessage(update: Update, replyText: String, markup: ReplyKeyboard? = null): SendMessage{
         val chatId = getChatId(update)
-        return SendMessage(chatId, replyText).apply { this.replyMarkup = markup }
+        return sendMessage(chatId, replyText, markup)
     }
 
+    private fun sendMessage(chatId: String, replyText: String, markup: ReplyKeyboard? = null): SendMessage =
+        SendMessage(chatId, replyText).apply { this.replyMarkup = markup }
 
     private fun getChatId(update: Update) =
         if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
@@ -420,6 +432,16 @@ class UpdateHandler
         date = null
         phone = null
     }
+
+    private fun generateAnnouncementText(): String =
+        "\n ${announcementType!!.emoji} ${announcementType!!.nameLatin} " +
+        "\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
+        "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
+        "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
+        "\n" +
+        "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
+        "\n"
+
 
     companion object {
         const val PREFIX_TYPE = "Type_"
@@ -436,6 +458,10 @@ class UpdateHandler
         const val SAVE_ANNOUNCEMENT = "SaveAnnouncement"
         const val SAVE_DRIVER_DATA = "SaveTaxiDetails"
         const val CHANGE = "Change"
+        const val ACCEPT_CLIENT = "AcceptClient_"
+        const val ACCEPT_DRIVER = "AcceptDriver_"
+        const val DENY_CLIENT = "DenyClient_"
+        const val DENY_DRIVER = "DenyDriver_"
         const val CHANNEL_ID_TAXI_BEKAT_TEST = "@taxi_bekat_test_chanel"
         const val CHANNEL_LINK_TAXI_BEKAT_TEST = "https://t.me/taxi_bekat_test_chanel"
     }
