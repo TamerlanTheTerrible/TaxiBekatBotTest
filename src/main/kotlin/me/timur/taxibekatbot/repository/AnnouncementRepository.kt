@@ -2,7 +2,7 @@ package me.timur.taxibekatbot.repository
 
 import me.timur.taxibekatbot.entity.Announcement
 import me.timur.taxibekatbot.entity.SubRegion
-import me.timur.taxibekatbot.entity.enum.AnnouncementType
+import me.timur.taxibekatbot.enum.AnnouncementType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository

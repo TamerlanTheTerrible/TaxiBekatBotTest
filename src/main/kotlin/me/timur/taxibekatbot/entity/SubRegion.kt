@@ -16,6 +16,9 @@ class SubRegion() {
     @Column(name = "name_cyrillic")
     var nameCyrillic: String? = null
 
+    @Column(name = "is_center")
+    var isCenter: Boolean = false
+
     @ManyToOne
     @JoinColumn(name = "region_id")
     var region: Region? = null

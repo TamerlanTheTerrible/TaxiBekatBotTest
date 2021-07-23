@@ -26,11 +26,15 @@ class TelegramUser {
     @Column(name = "phone")
     var phone: String? = null
 
-    constructor(user: User){
+    @Column(name = "chat_id")
+    var chatId: String? = null
+
+    constructor(user: User, chatId: String? = null){
         this.telegramId = user.id
         this.userName = user.userName
         this.lastName = user.lastName
         this.firstName = user.firstName
+        this.chatId = chatId
     }
 
 }

@@ -9,7 +9,10 @@ import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
 import org.telegram.telegrambots.meta.api.objects.Update
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
 
 @Component
 class Bot: TelegramLongPollingBot(){
@@ -30,12 +33,12 @@ class Bot: TelegramLongPollingBot(){
     override fun onUpdateReceived(update: Update) {
         val chatId = if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
         val messageId = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
+
         try {
             val messages = updateHandler!!.handle(update)
 
             for (message in messages)
                 execute(message)
-
 
             val deleteMsg = DeleteMessage(chatId, messageId)
             execute(deleteMsg)
@@ -47,6 +50,7 @@ class Bot: TelegramLongPollingBot(){
             logger.error(e.stackTraceToString())
             System.err.println(e)
         }
+
     }
 
     companion object {

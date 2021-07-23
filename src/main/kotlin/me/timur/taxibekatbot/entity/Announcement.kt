@@ -1,7 +1,7 @@
 package me.timur.taxibekatbot.entity
 
-import me.timur.taxibekatbot.entity.enum.AnnouncementStatus
-import me.timur.taxibekatbot.entity.enum.AnnouncementType
+import me.timur.taxibekatbot.enum.AnnouncementStatus
+import me.timur.taxibekatbot.enum.AnnouncementType
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.persistence.*
@@ -18,7 +18,7 @@ class Announcement {
     var dateCreated: LocalDateTime? = null
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "look_for")
+    @Column(name = "announcement_type")
     var announcementType: AnnouncementType? = null
 
     @Column(name = "trip_date")
