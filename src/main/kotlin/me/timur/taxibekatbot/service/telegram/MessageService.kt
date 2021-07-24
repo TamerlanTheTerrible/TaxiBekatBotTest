@@ -1,7 +1,7 @@
 package me.timur.taxibekatbot.service.telegram
 
 import me.timur.taxibekatbot.entity.*
-import me.timur.taxibekatbot.enum.AnnouncementType
+import me.timur.taxibekatbot.enum.TripType
 import me.timur.taxibekatbot.repository.CarRepository
 import me.timur.taxibekatbot.repository.FrameRouteRepository
 import me.timur.taxibekatbot.repository.RegionRepository
@@ -10,10 +10,11 @@ import me.timur.taxibekatbot.util.KeyboardUtils.createInlineButton
 import me.timur.taxibekatbot.util.KeyboardUtils.createInlineButtonList
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
-import me.timur.taxibekatbot.util.PhoneUtil.getFullPhoneNumber
+import me.timur.taxibekatbot.util.UpdateUtil.getChatId
 import me.timur.taxibekatbot.util.getStringAfter
 import me.timur.taxibekatbot.util.getStringBetween
 import me.timur.taxibekatbot.util.toInlineKeyBoard
+import me.timur.taxibekatbot.util.UpdateUtil.sendMessage
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -23,7 +24,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
@@ -32,26 +32,21 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import java.time.LocalDate
 
 @Component
-class UpdateHandler
+class MessageService
 @Autowired constructor(
-    private val regionRepository: RegionRepository,
-    private val subRegionService: SubRegionService,
-    private val announcementService: AnnouncementService,
-    private val telegramUserService: TelegramUserService,
-    private val frameRouteRepository: FrameRouteRepository,
-    private val routeService: RouteService,
-    private val carRepository: CarRepository,
-    private val driverService: DriverService
+        private val regionRepository: RegionRepository,
+        private val subRegionService: SubRegionService,
+        private val tripService: TripService,
+        private val telegramUserService: TelegramUserService,
+        private val frameRouteRepository: FrameRouteRepository,
+        private val routeService: RouteService,
+        private val carRepository: CarRepository,
+        private val driverService: DriverService
 ){
     @Value("\${bot.username}")
     lateinit var botName: String
 
-    var announcementType: AnnouncementType? = null
-    var from: SubRegion? = null
-    var to: SubRegion? = null
-    var date: LocalDate? = null
-    var phone: String? = null
-    var telegramUser: TelegramUser? = null
+    var announcement = Trip()
 
     var taxiFrameRoute: String? = null
     val subRegionNameSet = ArrayList<String>()
@@ -59,7 +54,7 @@ class UpdateHandler
     var taxiRoutesLimit = 2
     val taxiRoutes = ArrayList<Route>()
 
-    fun handle(update: Update): List<BotApiMethod<Message>>{
+    fun generateMessage(update: Update): List<BotApiMethod<Message>>{
 
         val messages: List<BotApiMethod<Message>> = when {
             update.hasMessage() -> when {
@@ -100,26 +95,25 @@ class UpdateHandler
         val fromSubRegLatinName = update.getStringBetween(PREFIX_ROUTE_CLIENT, "-")
         val toSubRegLatinName = update.getStringAfter("-")
 
-        from = subRegionService.findByNameLatin(fromSubRegLatinName)
-        to = subRegionService.findByNameLatin(toSubRegLatinName)
+        announcement.from = subRegionService.findByNameLatin(fromSubRegLatinName)
+        announcement.to = subRegionService.findByNameLatin(toSubRegLatinName)
 
         return chooseDate(update)
     }
 
     private fun saveAnnouncement(update: Update): List<BotApiMethod<Message>> {
         val messageId = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
-
-        val announcement = Announcement(announcementType, date, from, to, telegramUser, messageId)
-        announcementService.save(announcement)
+        announcement.telegramMessageId = messageId
+        tripService.save(announcement)
 
         val replyTextClient = "#${announcement.id} raqamli e'lon joylashtirildi" +
                 "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${announcement.telegramMessageId}{" +
-                "\n ${announcementType!!.emoji} Qidirilmoqda: ${announcementType!!.nameLatin} " +
-                "\n\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
-                "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
-                "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
+                "\n ${announcement.type!!.emoji} Qidirilmoqda: ${announcement.type!!.nameLatin} " +
+                "\n\n \uD83D\uDDFA ${announcement.getTripStartPlace()} - ${announcement.getTripEndPlace()} " +
+                "\n \uD83D\uDCC5 ${announcement.getTripDay()}-${announcement.getTripMonth()}-${announcement.getTripYear()}\"" +
+                "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("${announcement.telegramUser!!.phone}")}" +
                 "\n" +
-                "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
+                "\n #${(announcement.getTripStartPlace())?.substringBefore(" ")}${(announcement.getTripEndPlace())?.substringBefore(" ")}${announcement.type}" +
                 "\n" +
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
@@ -134,8 +128,8 @@ class UpdateHandler
         return messages
     }
 
-    private fun notifyMatchingDrivers(announcement: Announcement): List<BotApiMethod<Message>> {
-        val drivers = driverService.findAllByMatchingRoute(announcement)
+    private fun notifyMatchingDrivers(trip: Trip): List<BotApiMethod<Message>> {
+        val drivers = driverService.findAllByMatchingRoute(trip)
 
         val notifications = arrayListOf<BotApiMethod<Message>>()
 
@@ -157,8 +151,6 @@ class UpdateHandler
     }
 
     private fun reviewAnnouncement(update: Update): List<SendMessage> {
-        phone = getFullPhoneNumber(update)
-
         telegramUserService.savePhone(update)
 
         val replyText = generateAnnouncementText() +
@@ -176,7 +168,7 @@ class UpdateHandler
 
     private fun requestContact(update: Update): List<SendMessage> {
         val dateInString = update.getStringAfter(PREFIX_DATE)
-        date = LocalDate.parse(dateInString)
+        announcement.tripDate = LocalDate.parse(dateInString)
 
         val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
                 "\"\uD83D\uDCF1Raqamni yuborish\" tugmachasini bosing ⬇"
@@ -196,9 +188,9 @@ class UpdateHandler
     }
 
     private fun chooseDate(update: Update): List<SendMessage> {
-        if(to == null) {
+        if(announcement.to== null) {
             val name = update.getStringAfter(PREFIX_TO_SUB_REGION)
-            to = subRegionService.findByNameLatin(name)
+            announcement.to = subRegionService.findByNameLatin(name)
         }
 
         val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
@@ -245,7 +237,7 @@ class UpdateHandler
 
     private fun chooseToRegion(update: Update): List<SendMessage> {
         val name = update.getStringAfter(PREFIX_FROM_SUB_REGION)
-        from = subRegionService.findByNameLatin(name)
+        announcement.from = subRegionService.findByNameLatin(name)
 
         val list = regionRepository.findAll()
         val replyMarkup = list.toInlineKeyBoard(PREFIX_TO_REGION, "nameLatin")
@@ -263,7 +255,7 @@ class UpdateHandler
 
     private fun saveDriverDetails(update: Update): List<BotApiMethod<Message>> {
         val car = carRepository.findByNameLatin(carName!!)!!
-        val driver = driverService.saveOrUpdate(Driver(telegramUser!!, car))
+        val driver = driverService.saveOrUpdate(Driver(announcement.telegramUser!!, car))
 
         val subRegionList = subRegionService.findAllByNames(subRegionNameSet)
         val destinationRegionName = taxiFrameRoute!!.substringAfter("-").substringBeforeLast("-")
@@ -337,8 +329,8 @@ class UpdateHandler
     }
 
     private fun chooseFromRegion(update: Update): List<SendMessage> {
-        if (announcementType == null)
-            announcementType = AnnouncementType.findByName(update.getStringAfter(PREFIX_TYPE))
+        if (announcement.type == null)
+            announcement.type = TripType.findByName(update.getStringAfter(PREFIX_TYPE))
 
         val list = regionRepository.findAll()
         val replyMarkup = list.toInlineKeyBoard(PREFIX_FROM_REGION, "nameLatin")
@@ -347,9 +339,9 @@ class UpdateHandler
     }
 
     private fun chooseRoute(update: Update): List<BotApiMethod<Message>> {
-        val type = AnnouncementType.valueOf(update.getStringAfter(PREFIX_TYPE))
+        val type = TripType.valueOf(update.getStringAfter(PREFIX_TYPE))
 
-        return if(type == AnnouncementType.TAXI)
+        return if(type == TripType.TAXI)
             chooseTaxiRoute(update)
         else chooseClientRoute(update)
     }
@@ -373,10 +365,10 @@ class UpdateHandler
     }
 
     private fun chooseClientRoute(update: Update): List<BotApiMethod<Message>> {
-        if (announcementType == null)
-            announcementType = AnnouncementType.findByName(update.getStringAfter(PREFIX_TYPE))
+        if (announcement.type == null)
+            announcement.type = TripType.findByName(update.getStringAfter(PREFIX_TYPE))
 
-        val routes = announcementService.getMostPopularRoutesByUserAndAnnouncementType(telegramUser!!, announcementType!!)
+        val routes = tripService.getMostPopularRoutesByUserAndType(announcement.telegramUser!!, announcement.type!!)
 
         return if (routes.isNullOrEmpty())
             chooseFromRegion(update)
@@ -398,12 +390,12 @@ class UpdateHandler
     private fun commandStart(update: Update): List<SendMessage> {
         clearVariables()
 
-        telegramUser = telegramUserService.saveUser(update)
+        announcement.telegramUser = telegramUserService.saveUser(update)
 
         val keyboard = listOf(
-            createInlineButtonList("${AnnouncementType.TAXI.emoji} Men haydovchiman", "${PREFIX_TYPE}${AnnouncementType.TAXI.name}"),
-            createInlineButtonList("${AnnouncementType.CLIENT.emoji}️Menga haydovchi kerak", "${PREFIX_TYPE}${AnnouncementType.CLIENT.name}"),
-            createInlineButtonList("${AnnouncementType.POST.emoji}️Pochta jo'natmoqchiman", "${PREFIX_TYPE}${AnnouncementType.POST.name}"))
+            createInlineButtonList("${TripType.TAXI.emoji} Men haydovchiman", "${PREFIX_TYPE}${TripType.TAXI.name}"),
+            createInlineButtonList("${TripType.CLIENT.emoji}️Menga haydovchi kerak", "${PREFIX_TYPE}${TripType.CLIENT.name}"),
+            createInlineButtonList("${TripType.POST.emoji}️Pochta jo'natmoqchiman", "${PREFIX_TYPE}${TripType.POST.name}"))
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = keyboard }
         val responseText = "\uD83D\uDC47 Nima qidirayapsiz"
@@ -413,33 +405,18 @@ class UpdateHandler
         return listOf(sendMessage(update, responseText, markup))
     }
 
-    private fun sendMessage(update: Update, replyText: String, markup: ReplyKeyboard? = null): SendMessage{
-        val chatId = getChatId(update)
-        return sendMessage(chatId, replyText, markup)
-    }
-
-    private fun sendMessage(chatId: String, replyText: String, markup: ReplyKeyboard? = null): SendMessage =
-        SendMessage(chatId, replyText).apply { this.replyMarkup = markup }
-
-    private fun getChatId(update: Update) =
-        if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
 
     private fun clearVariables() {
-        announcementType = null
-        from = null
-        to = null
-        telegramUser = null
-        date = null
-        phone = null
+        announcement = Trip()
     }
 
     private fun generateAnnouncementText(): String =
-        "\n ${announcementType!!.emoji} ${announcementType!!.nameLatin} " +
-        "\n \uD83D\uDDFA ${from?.nameLatin} - ${to?.nameLatin} " +
-        "\n \uD83D\uDCC5 ${date!!.dayOfMonth}-${date!!.month}-${date!!.year}\"" +
-        "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("$phone")}" +
+        "\n ${announcement.type!!.emoji} ${announcement.type!!.nameLatin} " +
+        "\n \uD83D\uDDFA ${announcement.getTripStartPlace()} - ${announcement.getTripEndPlace()} " +
+        "\n \uD83D\uDCC5 ${announcement.getTripDay()}-${announcement.getTripMonth()}-${announcement.getTripYear()}\"" +
+        "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("${announcement.getClientPhone()}")}" +
         "\n" +
-        "\n #${(from?.nameLatin)?.substringBefore(" ")}${(to?.nameLatin)?.substringBefore(" ")}$announcementType" +
+        "\n #${announcement.getTripStartPlace()?.substringBefore(" ")}${announcement.getTripEndPlace()?.substringBefore(" ")}${announcement.type}" +
         "\n"
 
 

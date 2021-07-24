@@ -1,11 +1,9 @@
 package me.timur.taxibekatbot.service
 
-import me.timur.taxibekatbot.entity.Announcement
+import me.timur.taxibekatbot.entity.Trip
 import me.timur.taxibekatbot.entity.Driver
-import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.repository.DriverRepository
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 
 @Service
@@ -14,10 +12,10 @@ class DriverService
     private val driverRepository: DriverRepository,
     private val telegramUserService: TelegramUserService
 ){
-    fun findAllByMatchingRoute(announcement: Announcement): List<Driver> {
+    fun findAllByMatchingRoute(trip: Trip): List<Driver> {
         return driverRepository.findAllByMatchingRoute(
-            announcement.from!!.id!!,
-            announcement.to!!.id!!
+            trip.from!!.id!!,
+            trip.to!!.id!!
         )
     }
 

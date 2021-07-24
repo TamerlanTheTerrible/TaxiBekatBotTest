@@ -1,14 +1,15 @@
 package me.timur.taxibekatbot.entity
 
 import me.timur.taxibekatbot.enum.AnnouncementStatus
-import me.timur.taxibekatbot.enum.AnnouncementType
+import me.timur.taxibekatbot.enum.TripType
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.Month
 import javax.persistence.*
 
 @Entity
-@Table(name = "announcement")
-class Announcement {
+@Table(name = "trip")
+class Trip() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,8 +19,8 @@ class Announcement {
     var dateCreated: LocalDateTime? = null
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "announcement_type")
-    var announcementType: AnnouncementType? = null
+    @Column(name = "trip_type")
+    var type: TripType? = null
 
     @Column(name = "trip_date")
     var tripDate: LocalDate? = null
@@ -43,15 +44,20 @@ class Announcement {
     @Column(name = "status")
     var status: AnnouncementStatus = AnnouncementStatus.ACTIVE
 
+    @ManyToOne
+    @JoinColumn(name = "confirmed_driver")
+    var driver: Driver? = null
+
+
     constructor(
-        announcementType: AnnouncementType?,
-        tripDate: LocalDate?,
-        from: SubRegion?,
-        to: SubRegion?,
-        telegramUser: TelegramUser?,
-        messageId: Int
-    ) {
-        this.announcementType = announcementType
+            tripType: TripType?,
+            tripDate: LocalDate?,
+            from: SubRegion?,
+            to: SubRegion?,
+            telegramUser: TelegramUser?,
+            messageId: Int
+    ):this() {
+        this.type = tripType
         this.tripDate = tripDate
         this.from = from
         this.to = to
@@ -59,8 +65,21 @@ class Announcement {
         this.telegramMessageId = messageId
     }
 
+    @Transient
+    fun getTripStartPlace(): String? = from?.nameLatin
+    @Transient
+    fun getTripEndPlace(): String? = to?.nameLatin
+    @Transient
+    fun getClientPhone(): String? = telegramUser?.phone
+    @Transient
+    fun getTripDay(): Int? = tripDate?.dayOfMonth
+    @Transient
+    fun getTripMonth(): Month? = tripDate?.month
+    @Transient
+    fun getTripYear(): Int? = tripDate?.year
+
     override fun toString(): String {
-        return "Announcement(id=$id, dateCreated=$dateCreated, announcementType=$announcementType, tripDate=$tripDate, from=$from, to=$to, telegramUser=$telegramUser)"
+        return "Announcement(id=$id, dateCreated=$dateCreated, announcementType=$type, tripDate=$tripDate, from=$from, to=$to, telegramUser=$telegramUser)"
     }
 
 
