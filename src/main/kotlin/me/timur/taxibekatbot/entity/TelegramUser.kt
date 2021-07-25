@@ -5,7 +5,7 @@ import javax.persistence.*
 
 @Entity
 @Table(name = "telegram_user")
-class TelegramUser {
+class TelegramUser() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,7 +29,7 @@ class TelegramUser {
     @Column(name = "chat_id")
     var chatId: String? = null
 
-    constructor(user: User, chatId: String? = null){
+    constructor(user: User, chatId: String? = null): this(){
         this.telegramId = user.id
         this.userName = user.userName
         this.lastName = user.lastName

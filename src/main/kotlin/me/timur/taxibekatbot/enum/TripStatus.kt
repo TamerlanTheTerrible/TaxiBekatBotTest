@@ -1,5 +1,5 @@
 package me.timur.taxibekatbot.enum
 
-enum class AnnouncementStatus {
+enum class TripStatus {
     ACTIVE, DEPRECATED, DELETED
 }

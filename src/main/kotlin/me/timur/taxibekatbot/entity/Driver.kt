@@ -6,7 +6,7 @@ import javax.persistence.*
 
 @Entity
 @Table(name = "driver")
-class Driver {
+class Driver() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +28,7 @@ class Driver {
         telegramUser: TelegramUser,
         car: Car,
         status: DriverStatus = DriverStatus.ACTIVE
-    ) {
+    ):this() {
         this.telegramUser = telegramUser
         this.car = car
         this.status = status

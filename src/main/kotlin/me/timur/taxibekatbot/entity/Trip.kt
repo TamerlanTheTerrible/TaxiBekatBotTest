@@ -1,6 +1,6 @@
 package me.timur.taxibekatbot.entity
 
-import me.timur.taxibekatbot.enum.AnnouncementStatus
+import me.timur.taxibekatbot.enum.TripStatus
 import me.timur.taxibekatbot.enum.TripType
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -42,7 +42,7 @@ class Trip() {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    var status: AnnouncementStatus = AnnouncementStatus.ACTIVE
+    var status: TripStatus = TripStatus.ACTIVE
 
     @ManyToOne
     @JoinColumn(name = "confirmed_driver")

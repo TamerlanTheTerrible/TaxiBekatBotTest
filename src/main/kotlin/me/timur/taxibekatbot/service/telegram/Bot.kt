@@ -3,6 +3,7 @@ package me.timur.taxibekatbot.service.telegram
 import ch.qos.logback.classic.Logger
 import me.timur.taxibekatbot.exception.InvalidInputException
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -21,7 +22,7 @@ class Bot: TelegramLongPollingBot(){
     lateinit var tgBotToken: String;
 
     @Autowired
-    private var messageService: MessageService? = null
+    private lateinit var msgServiceBeanFactory: MessageServiceBeanFactory
 
     override fun getBotToken(): String = tgBotToken
 
@@ -32,13 +33,11 @@ class Bot: TelegramLongPollingBot(){
         val messageId = if (update.hasMessage()) update.message.messageId else update.callbackQuery.message.messageId
 
         try {
-            val messages = messageService!!.generateMessage(update)
+            val messages = msgServiceBeanFactory.getBean(update).generateMessage(update)
 
             for (message in messages)
                 execute(message)
 
-            val deleteMsg = DeleteMessage(chatId, messageId)
-            execute(deleteMsg)
         }
         catch (e: InvalidInputException){
             execute(SendMessage(chatId, e.message ?: "Kutilmagn xatolik"))

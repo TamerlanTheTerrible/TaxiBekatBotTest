@@ -18,18 +18,31 @@ object UpdateUtil {
             if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()
 }
 
+fun Update.getMessageId() =
+    if (this.hasMessage())
+        this.message.messageId
+    else
+        this.callbackQuery.message.messageId
+
 fun Update.getChatId() =
     if (this.hasMessage())
         this.message.chatId.toString()
     else
         this.callbackQuery.message.chatId.toString()
 
-fun Update.getStringAfter(afterString: String) =
-    this.callbackQuery.data.substringAfter(afterString)
+fun Update.getStringAfter(afterString: String): String {
+    val str = this.getText()
+    return str!!.substringAfter(afterString)
+}
 
-fun Update.getStringBefore(beforeString: String) =
-    this.callbackQuery.data.substringBefore(beforeString)
+fun Update.getStringBefore(beforeString: String): String {
+    val str = this.getText()
+    return str!!.substringBefore(beforeString)
+}
 
-fun Update.getStringBetween(afterString: String, beforeString: String) =
-    this.callbackQuery.data.substringAfter(afterString).substringBefore(beforeString)
-
+private fun Update.getText(): String? {
+    return if (hasCallbackQuery())
+        callbackQuery.data
+    else
+        message.text
+}
