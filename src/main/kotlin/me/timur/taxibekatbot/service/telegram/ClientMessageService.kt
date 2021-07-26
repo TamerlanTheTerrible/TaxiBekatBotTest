@@ -47,12 +47,15 @@ class ClientMessageService
 ): MessageService{
     @Value("\${bot.username}")
     lateinit var botName: String
-
     var user = TelegramUser()
     var trip = Trip()
     var driver = Driver()
 
     lateinit var clientRoutesCached: List<String>
+    lateinit var fromRegionNames: List<String>
+    lateinit var fromSubRegionNames: List<String>
+    lateinit var toRegionNames: List<String>
+    lateinit var toSubRegionNames: List<String>
 
     var taxiFrameRoute: String? = null
     val subRegionNameSet = ArrayList<String>()
@@ -64,11 +67,17 @@ class ClientMessageService
             update.hasMessage() -> when {
                 update.message.text == "/start" -> commandStart(update)
                 update.message.text == btnNeedTaxi -> chooseClientRoute(update)
+                update.message.text == btnNeedToSendPost -> choosePostRoute(update)
                 clientRoutesCached.any { it == update.message.text } -> setRouteAndChooseDate(update)
                 datesToChoseFrom.any{ it == update.message.text } -> requestContact(update)
                 update.message.text == btnSaveTrip -> saveTrip(update)
                 update.message.text == btnChangeTrip -> denyTrip(update)
                 update.message.text == btnStartNewTrip -> commandStart(update)
+                update.message.text == btnNewClientRoute -> chooseFromRegion(update)
+                fromRegionNames.any { it == update.message.text } -> chooseFromSubRegion(update)
+                fromSubRegionNames.any { it == update.message.text } -> chooseToRegion(update)
+                toRegionNames.any { it == update.message.text } -> chooseToSubRegion(update)
+                toSubRegionNames.any{ it == update.message.text} -> chooseDate(update)
                 containsPhone(update) -> reviewTrip(update)
                     else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
@@ -110,6 +119,12 @@ class ClientMessageService
         return listOf(sendMessage(update, responseText, markup))
     }
 
+    private fun choosePostRoute(update: Update): List<BotApiMethod<Message>> {
+        if (trip.type == null)
+            trip.type = TripType.POST
+        return chooseRote(update)
+    }
+
     private fun chooseClientRoute(update: Update): List<BotApiMethod<Message>> {
         if (trip.type == null)
             trip.type = TripType.CLIENT
@@ -123,7 +138,7 @@ class ClientMessageService
             chooseFromRegion(update)
         else {
             val keyboard = createKeyboard(clientRoutesCached)
-            keyboard.add(createKeyboardRow("➕ Boshqa yo'nalish"))
+            keyboard.add(createKeyboardRow(btnNewClientRoute))
 
             val markup = ReplyKeyboardMarkup(keyboard, true, true, false)
             listOf(sendMessage(update, "\uD83D\uDDFA Yo'nalishni tanlang", markup))
@@ -142,7 +157,7 @@ class ClientMessageService
 
     private fun chooseDate(update: Update): List<SendMessage> {
         if(trip.to== null) {
-            val toSubRegLatinName = update.getStringAfter("-")
+            val toSubRegLatinName = update.message.text.substringAfter("\uD83D\uDFE5 ")
             trip.to = subRegionService.findByNameLatin(toSubRegLatinName)
         }
 
@@ -233,31 +248,39 @@ class ClientMessageService
         return notifications
     }
 
-    private fun chooseToSubRegion(update: Update): List<SendMessage> {
-        val name = update.getStringAfter(PREFIX_TO_REGION)
-        val list = subRegionService.findAllByRegionNameLatin(name)
-        val replyMarkup = list.toInlineKeyBoard(PREFIX_TO_SUB_REGION, "nameLatin")
+    private fun chooseFromRegion(update: Update): List<SendMessage> {
+        fromRegionNames = regionRepository.findAll().map { "\uD83D\uDFE5 ${it.nameLatin!!}"}
+        val replyMarkup = createReplyKeyboardMarkup(fromRegionNames)
 
-        return listOf(sendMessage(update, "\uD83D\uDFE6 Qaysi shahar/tumanga", replyMarkup))
-    }
-
-    private fun chooseToRegion(update: Update): List<SendMessage> {
-        val name = update.getStringAfter(PREFIX_FROM_SUB_REGION)
-        trip.from = subRegionService.findByNameLatin(name)
-
-        val list = regionRepository.findAll()
-        val replyMarkup = list.toInlineKeyBoard(PREFIX_TO_REGION, "nameLatin")
-
-        return listOf(sendMessage(update, "\uD83D\uDFE6 Qaysi viloyatga", replyMarkup))
+        return listOf(sendMessage(update, "Qaysi viloyatdan", replyMarkup))
     }
 
     private fun chooseFromSubRegion(update: Update): List<SendMessage> {
-        val name = update.getStringAfter(PREFIX_FROM_REGION)
-        val list = subRegionService.findAllByRegionNameLatin(name)
-        val replyMarkup = list.toInlineKeyBoard(PREFIX_FROM_SUB_REGION, "nameLatin")
+        val regionName = update.message.text.substringAfter("\uD83D\uDFE5 ")
+        fromSubRegionNames = subRegionService.findAllByRegionNameLatin(regionName).map { "\uD83D\uDFE5 ${it.nameLatin}" }
+        val replyMarkup = createReplyKeyboardMarkup(fromSubRegionNames)
 
-        return listOf(sendMessage(update, "\uD83D\uDFE5 Qaysi shahar/tumandan", replyMarkup))
+        return listOf(sendMessage(update, "Qaysi shahar/tumandan", replyMarkup))
     }
+
+    private fun chooseToRegion(update: Update): List<SendMessage> {
+        val sebRegionName = update.message.text.substringAfter("\uD83D\uDFE5 ")
+        trip.from = subRegionService.findByNameLatin(sebRegionName)
+
+        toRegionNames = regionRepository.findAll().map { "\uD83D\uDFE6 ${it.nameLatin!!}"}
+        val replyMarkup = createReplyKeyboardMarkup(fromRegionNames)
+
+        return listOf(sendMessage(update, "Qaysi viloyatga", replyMarkup))
+    }
+
+    private fun chooseToSubRegion(update: Update): List<SendMessage> {
+        val regionName = update.message.text.substringAfter("\uD83D\uDFE6 ")
+        toSubRegionNames = subRegionService.findAllByRegionNameLatin(regionName).map { "\uD83D\uDFE6 ${it.nameLatin}" }
+        val replyMarkup = createReplyKeyboardMarkup(toSubRegionNames)
+
+        return listOf(sendMessage(update, "Qaysi shahar/tumanga", replyMarkup))
+    }
+
 
 //    private fun saveDriverDetails(update: Update): List<BotApiMethod<Message>> {
 //        driver.car = carRepository.findByNameLatin(carName!!)!!
@@ -335,17 +358,6 @@ class ClientMessageService
 //        return listOf(sendMessage(update, text, markup))
 //    }
 
-    private fun chooseFromRegion(update: Update): List<SendMessage> {
-        if (trip.type == null)
-            trip.type = TripType.findByName(update.getStringAfter(PREFIX_TYPE))
-
-        val list = regionRepository.findAll()
-        val replyMarkup = list.toInlineKeyBoard(PREFIX_FROM_REGION, "nameLatin")
-
-        return listOf(sendMessage(update, "\uD83D\uDFE5 Qaysi viloyatdan", replyMarkup))
-    }
-
-
 //    private fun chooseTaxiRoute(update: Update): List<BotApiMethod<Message>> {
 //        val frameRoutes = frameRouteRepository.findAll()
 //
@@ -371,7 +383,7 @@ class ClientMessageService
     private fun generateTripAnnouncement(): String =
         "\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
         "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
-        "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}\"" +
+        "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
         "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("${user.phone}")}" +
         "\n" +
         "\n #${trip.getTripStartPlace()?.substringBefore(" ")}${trip.getTripEndPlace()?.substringBefore(" ")}${trip.type}" +
@@ -384,6 +396,8 @@ class ClientMessageService
         val btnNeedTaxi = "${TripType.CLIENT.emoji} Menga haydovchi kerak"
         val btnNeedToSendPost = "${TripType.POST.emoji} Pochta jo'natmoqchiman"
         val btnIamTaxi = "${TripType.TAXI.emoji} Men haydovchiman"
+        //client route
+        val btnNewClientRoute = "➕ Boshqa yo'nalish"
         //date
         const val btnToday = "Bugun"
         const val btnTomorrow = "Ertaga"
