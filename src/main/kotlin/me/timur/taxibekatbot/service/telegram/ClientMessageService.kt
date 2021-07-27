@@ -348,7 +348,7 @@ class ClientMessageService
         val subRegionList = subRegionService.findAllByNames(taxiSubRegionNameSet)
         val destinationRegionName = taxiFrameRoute.substringAfter("-").substringBeforeLast("-")
         val destination = subRegionService.findMainSubRegion(destinationRegionName)
-        routeService.createRoutesFromSubRegions(subRegionList, destination, driver)
+        routeService.updateDriverRoutes(subRegionList, destination, driver)
 
         val replyText = "✅ Ma'lumotlar saqlandi. " +
                 "\n\uD83E\uDD1D Yo'nalishlaringizga mos yo'lovchi chiqsa, sizga darhol xabar beramiz. " +
