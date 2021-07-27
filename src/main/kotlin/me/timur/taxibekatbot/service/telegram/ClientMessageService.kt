@@ -57,15 +57,20 @@ class ClientMessageService
     lateinit var toRegionNames: List<String>
     lateinit var toSubRegionNames: List<String>
 
-    var taxiFrameRoute: String? = null
-    val subRegionNameSet = ArrayList<String>()
-    var carName: String? = null
+    lateinit var taxiFrameRoute: String
+    lateinit var taxiSubregionToChooseFrom: ArrayList<String>
+    val taxiSubRegionNameSet = ArrayList<String>()
     var taxiRoutesLimit = 2
+    lateinit var carNames: List<String>
+    lateinit var carName: String
+
 
     override fun generateMessage(update: Update): List<BotApiMethod<Message>>{
         val messages: List<BotApiMethod<Message>> = when {
             update.hasMessage() -> when {
+                //general
                 update.message.text == "/start" -> commandStart(update)
+                //client
                 update.message.text == btnNeedTaxi -> chooseClientRoute(update)
                 update.message.text == btnNeedToSendPost -> choosePostRoute(update)
                 clientRoutesCached.any { it == update.message.text } -> setRouteAndChooseDate(update)
@@ -78,6 +83,12 @@ class ClientMessageService
                 fromSubRegionNames.any { it == update.message.text } -> chooseToRegion(update)
                 toRegionNames.any { it == update.message.text } -> chooseToSubRegion(update)
                 toSubRegionNames.any{ it == update.message.text} -> chooseDate(update)
+                //taxi
+                update.message.text == btnIamTaxi -> chooseFirstTaxiRoute(update)
+                taxiSubregionToChooseFrom.any{ it == update.message.text } -> chooseOtherTaxiRoutes(update)
+                carNames.any { it == update.message.text } -> previewDriverData(update)
+                update.message.text == btnSaveDriverDetails -> saveDriverDetails(update)
+
                 containsPhone(update) -> reviewTrip(update)
                     else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
@@ -110,6 +121,7 @@ class ClientMessageService
         return messages
     }
 
+    //CLIENT
     private fun commandStart(update: Update): List<SendMessage> {
         clearVariables()
         user = telegramUserService.saveUser(update)
@@ -220,7 +232,6 @@ class ClientMessageService
         val messageToForward = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, getChatId(update), messageId-1)
         val messages = arrayListOf(messageToClient, messageToForward)
 
-//        TODO("call from taxi message service")
         val notificationForDrivers = notifyMatchingDrivers(trip)
         messages.addAll(notificationForDrivers)
 
@@ -282,99 +293,92 @@ class ClientMessageService
     }
 
 
-//    private fun saveDriverDetails(update: Update): List<BotApiMethod<Message>> {
-//        driver.car = carRepository.findByNameLatin(carName!!)!!
-//        driver.telegramUser = trip.telegramUser!!
-//        driver = driverService.saveOrUpdate(driver)
-//
-//        val subRegionList = subRegionService.findAllByNames(subRegionNameSet)
-//        val destinationRegionName = taxiFrameRoute!!.substringAfter("-").substringBeforeLast("-")
-//        val destination = subRegionService.findMainSubRegion(destinationRegionName)
-//        routeService.createRoutesFromSubRegions(subRegionList, destination, driver)
-//
-//        val replyText = "✅ Ma'lumotlar saqlandi. " +
-//                "\n\n\uD83E\uDD1D Yo'nalishlaringizga mos yo'lovchi chiqsa, sizga darhol xabar beramiz. " +
-//                "\n\n\uD83D\uDCDE Qo'shimcha ma'lumotlar uchun +998 99 3972636 ga murojat qilishingiz mumkin" +
-//                "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
-//
-//        return listOf(sendMessage(update, replyText))
-//    }
-//
-//    private fun previewDriverData(update: Update): List<BotApiMethod<Message>> {
-//        carName = update.getStringAfter(PREFIX_CAR)
-//
-//        val replyText = "Agar ma'lumotlar to'g'ri bo'lsa tasdiqlash tugmasini bosing:" +
-//                "\n\n\uD83D\uDEE3 - Asosiy marshrut: $taxiFrameRoute" +
-//                "\n\n\uD83C\uDF07 - Siz qatnaydigan tuman/shaharlar: ${subRegionNameSet.toString().substringAfter("[").substringBefore("]")}" +
-//                "\n\n\uD83D\uDE98 - Moshinangiz rusumi: $carName"
-//
-//        val replyMarkup = InlineKeyboardMarkup().apply {
-//            this.keyboard = listOf(
-//                createInlineButtonList("✅ Tasdiqlash", SAVE_DRIVER_DATA),
-//                createInlineButtonList("❌ Bekor qilish", CHANGE)
-//            )
-//        }
-//
-//        return listOf(sendMessage(update, replyText, replyMarkup))
-//    }
+    //TAXI
+    private fun chooseTaxiRoute(update: Update): List<BotApiMethod<Message>> {
+        val frameRoutes = frameRouteRepository.findAll()
 
-//    private fun chooseOtherTaxiRoutes(update: Update): List<BotApiMethod<Message>> {
-//        taxiRoutesLimit--
-//
-//        if (taxiRoutesLimit == 0)
-//            return chooseTaxiCar(update)
-//
-//        val subRegionName = update.getStringAfter(PREFIX_ROUTE_TAXI)
-//        subRegionNameSet.add(subRegionName)
-//
-//        val destinationRegionName = taxiFrameRoute!!.substringAfterLast("-")
-//        val subregions = subRegionService.findAllByRegionNameLatin(destinationRegionName)
-//            .filter { it.nameLatin != subRegionName }
-//
-//        val markup = subregions.toInlineKeyBoard(PREFIX_ROUTE_TAXI, "nameLatin")
-//        val text = "O'zingiz qatnaydigan tuman/shaharni " +
-//                "\n\n yana $taxiRoutesLimit ta tanlashingiz mumkin"
-//
-//        return listOf(sendMessage(update, text, markup))
-//    }
-//
-//    private fun chooseTaxiCar(update: Update): List<BotApiMethod<Message>> {
-//        val cars = carRepository.findAll()
-//        val markup = cars.toInlineKeyBoard(PREFIX_CAR, "nameLatin")
-//        val replyText = "Moshinangiz rusumini tanlang"
-//
-//        return listOf(sendMessage(update, replyText, markup))
-//    }
-//
-//    private fun chooseFirstTaxiRoute(update: Update): List<BotApiMethod<Message>> {
-//        taxiFrameRoute = update.getStringAfter(PREFIX_FRAME_ROUTE)
-//        val regionName = taxiFrameRoute!!.substringAfterLast("-")
-//        val subregions = subRegionService.findAllByRegionNameLatin(regionName)
-//
-//        val markup = subregions.toInlineKeyBoard(PREFIX_ROUTE_TAXI, "nameLatin")
-//        val text = "O'zingiz qatnaydigan tuman/shaharni " +
-//                "\n\n $taxiRoutesLimit ta tanlashingiz mumkin"
-//
-//        return listOf(sendMessage(update, text, markup))
-//    }
+        val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
 
-//    private fun chooseTaxiRoute(update: Update): List<BotApiMethod<Message>> {
-//        val frameRoutes = frameRouteRepository.findAll()
-//
-//        val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
-//
-//        frameRoutes.forEach {
-//            val home = it.home!!.nameLatin
-//            val destination = it.destination!!.nameLatin
-//            val route = "$home-$destination-$home"
-//
-//            val buttons = createInlineButtonList(route, "$PREFIX_FRAME_ROUTE$route")
-//            keyBoardList.add(buttons)
-//        }
-//
-//        val inlineKeyboard = InlineKeyboardMarkup().apply { keyboard = keyBoardList }
-//        return listOf(sendMessage(update, "\uD83D\uDDFA Qaysi yo'nalishda qatnaysiz", inlineKeyboard))
-//    }
+        frameRoutes.forEach {
+            val home = it.home!!.nameLatin
+            val destination = it.destination!!.nameLatin
+            val route = "$home-$destination-$home"
+
+            val buttons = createInlineButtonList(route, "$PREFIX_FRAME_ROUTE$route")
+            keyBoardList.add(buttons)
+        }
+
+        val inlineKeyboard = InlineKeyboardMarkup().apply { keyboard = keyBoardList }
+        return listOf(sendMessage(update, "\uD83D\uDDFA Qaysi yo'nalishda qatnaysiz", inlineKeyboard))
+    }
+
+    private fun chooseFirstTaxiRoute(update: Update): List<BotApiMethod<Message>> {
+        taxiFrameRoute = update.message.text
+        val regionName = taxiFrameRoute.substringAfterLast("-")
+        taxiSubregionToChooseFrom = subRegionService.findAllByRegionNameLatin(regionName).map { "\uD83D\uDFE2 ${it.nameLatin}" } as ArrayList<String>
+
+        val markup = createReplyKeyboardMarkup(taxiSubregionToChooseFrom)
+        val text = "O'zingiz qatnaydigan tuman/shaharni " +
+                "\n\n $taxiRoutesLimit ta tanlashingiz mumkin"
+
+        return listOf(sendMessage(update, text, markup))
+    }
+
+    private fun chooseOtherTaxiRoutes(update: Update): List<BotApiMethod<Message>> {
+        taxiRoutesLimit--
+        if (taxiRoutesLimit == 0)
+            return chooseTaxiCar(update)
+
+        taxiSubregionToChooseFrom.remove(update.message.text)
+
+        val subRegionName = update.getStringAfter("\uD83D\uDFE2 ")
+        taxiSubRegionNameSet.add(subRegionName)
+
+        val markup = createReplyKeyboardMarkup(taxiSubregionToChooseFrom)
+        val text = "O'zingiz qatnaydigan tuman/shaharni " +
+                "\n\n yana $taxiRoutesLimit ta tanlashingiz mumkin"
+
+        return listOf(sendMessage(update, text, markup))
+    }
+
+    private fun chooseTaxiCar(update: Update): List<BotApiMethod<Message>> {
+        carNames = carRepository.findAll().map { it.nameLatin!! }
+        val markup = createReplyKeyboardMarkup(carNames)
+        val replyText = "Moshinangiz rusumini tanlang"
+
+        return listOf(sendMessage(update, replyText, markup))
+    }
+
+    private fun previewDriverData(update: Update): List<BotApiMethod<Message>> {
+        carName = update.message.text
+
+        val replyText = "Agar ma'lumotlar to'g'ri bo'lsa saqlash tugmasini bosing:" +
+                "\n\n\uD83D\uDEE3 - Asosiy marshrut: $taxiFrameRoute" +
+                "\n\n\uD83C\uDF07 - Siz qatnaydigan tuman/shaharlar: ${taxiSubRegionNameSet.toString().substringAfter("[").substringBefore("]")}" +
+                "\n\n\uD83D\uDE98 - Moshinangiz rusumi: $carName"
+
+        val replyMarkup = createReplyKeyboardMarkup(btnSaveDriverDetails, btnCancelDriverDetails)
+
+        return listOf(sendMessage(update, replyText, replyMarkup))
+    }
+
+    private fun saveDriverDetails(update: Update): List<BotApiMethod<Message>> {
+        driver.car = carRepository.findByNameLatin(carName!!)!!
+        driver.telegramUser = trip.telegramUser!!
+        driver = driverService.saveOrUpdate(driver)
+
+        val subRegionList = subRegionService.findAllByNames(taxiSubRegionNameSet)
+        val destinationRegionName = taxiFrameRoute.substringAfter("-").substringBeforeLast("-")
+        val destination = subRegionService.findMainSubRegion(destinationRegionName)
+        routeService.createRoutesFromSubRegions(subRegionList, destination, driver)
+
+        val replyText = "✅ Ma'lumotlar saqlandi. " +
+                "\n\n\uD83E\uDD1D Yo'nalishlaringizga mos yo'lovchi chiqsa, sizga darhol xabar beramiz. " +
+                "\n\n\uD83D\uDCDE Qo'shimcha ma'lumotlar uchun +998 99 3972636 ga murojat qilishingiz mumkin" +
+                "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
+
+        return listOf(sendMessage(update, replyText))
+    }
 
     private fun clearVariables() {
         trip = Trip()
@@ -412,6 +416,8 @@ class ClientMessageService
         //notify-drivers
         const val btnAcceptClientRequest = "✅ Qabul qilish"
         const val btnDenyClientRequest = "❌ Rad qilish"
+        const val btnSaveDriverDetails = "✅ Saqlash"
+        const val btnCancelDriverDetails = "❌ Bekor qilish"
 
 
         const val PREFIX_TYPE = "$BEAN_PREFIX:Type_"
