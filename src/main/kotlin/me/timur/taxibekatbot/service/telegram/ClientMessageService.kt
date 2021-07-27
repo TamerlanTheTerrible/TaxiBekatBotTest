@@ -157,7 +157,7 @@ class ClientMessageService
 
     private fun chooseDate(update: Update): List<SendMessage> {
         if(trip.to== null) {
-            val toSubRegLatinName = update.message.text.substringAfter("\uD83D\uDFE5 ")
+            val toSubRegLatinName = update.message.text.substringAfter("\uD83D\uDFE6 ")
             trip.to = subRegionService.findByNameLatin(toSubRegLatinName)
         }
 
@@ -268,7 +268,7 @@ class ClientMessageService
         trip.from = subRegionService.findByNameLatin(sebRegionName)
 
         toRegionNames = regionRepository.findAll().map { "\uD83D\uDFE6 ${it.nameLatin!!}"}
-        val replyMarkup = createReplyKeyboardMarkup(fromRegionNames)
+        val replyMarkup = createReplyKeyboardMarkup(toRegionNames)
 
         return listOf(sendMessage(update, "Qaysi viloyatga", replyMarkup))
     }
