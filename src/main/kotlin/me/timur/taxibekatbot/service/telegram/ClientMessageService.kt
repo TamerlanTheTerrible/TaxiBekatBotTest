@@ -45,24 +45,25 @@ class ClientMessageService
         private val driverService: DriverService
 ): MessageService{
     @Value("\${bot.username}")
-    lateinit var botName: String
-    var user = TelegramUser()
-    var trip = Trip()
-    var driver = Driver()
+    private lateinit var botName: String
+    private var user = TelegramUser()
+    private var trip = Trip()
+    private var driver = Driver()
 
-    var clientRoutesCached = emptyList<String>()
-    var fromRegionNames = emptyList<String>()
-    var fromSubRegionNames = emptyList<String>()
-    var toRegionNames = emptyList<String>()
-    var toSubRegionNames = emptyList<String>()
+    private var clientRoutesCached = emptyList<String>()
+    private var fromRegionNames = emptyList<String>()
+    private var fromSubRegionNames = emptyList<String>()
+    private var toRegionNames = emptyList<String>()
+    private var toSubRegionNames = emptyList<String>()
+    private val ridersQuantityList = listOf("1", "2", "3", "4")
 
-    var taxiFrameRoute: String = ""
-    var taxiFrameRoutes = arrayListOf<String>()
-    var taxiSubregionsToChooseFrom = arrayListOf<String>()
-    var taxiSubRegionNameSet = arrayListOf<String>()
-    var taxiRoutesLimit = 2
-    var carNames = emptyList<String>()
-    var carName: String = ""
+    private var taxiFrameRoute: String = ""
+    private var taxiFrameRoutes = arrayListOf<String>()
+    private var taxiSubregionsToChooseFrom = arrayListOf<String>()
+    private var taxiSubRegionNameSet = arrayListOf<String>()
+    private var taxiRoutesLimit = 2
+    private var carNames = emptyList<String>()
+    private var carName: String = ""
 
 
     override fun generateMessage(update: Update): List<BotApiMethod<Message>>{
@@ -84,6 +85,7 @@ class ClientMessageService
                 fromSubRegionNames.any { it == update.message.text } -> chooseToRegion(update)
                 toRegionNames.any { it == update.message.text } -> chooseToSubRegion(update)
                 toSubRegionNames.any{ it == update.message.text} -> chooseDate(update)
+                ridersQuantityList.any { it == update.message.text } -> reviewTrip(update)
                 //taxi
                 update.message.text == btnIamTaxi -> chooseTaxiFrameRoute(update)
                 taxiFrameRoutes.any { it == update.message.text } -> chooseFirstTaxiRoute(update)
@@ -92,7 +94,7 @@ class ClientMessageService
                 update.message.text == btnSaveDriverDetails -> saveDriverDetails(update)
                 update.message.text == btnCancelDriverDetails -> cancelDriverDetails(update)
 
-                containsPhone(update) -> reviewTrip(update)
+                containsPhone(update) -> chooseRidersQuantity(update)
                     else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
             else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
@@ -126,7 +128,7 @@ class ClientMessageService
     private fun chooseRote(update: Update): List<BotApiMethod<Message>> {
         clientRoutesCached = tripService.getMostPopularRoutesByUserAndType(user, trip.type!!)
 
-        return if (clientRoutesCached.isNullOrEmpty())
+        return if (clientRoutesCached.isEmpty())
             chooseFromRegion(update)
         else {
             val keyboard = createKeyboard(clientRoutesCached)
@@ -177,8 +179,17 @@ class ClientMessageService
         return listOf(sendMessage(update, replyText, markup))
     }
 
-    private fun reviewTrip(update: Update): List<SendMessage> {
+    private fun chooseRidersQuantity(update: Update): List<BotApiMethod<Message>> {
         telegramUserService.savePhone(update)
+
+        val replyTex = "Yo'lovchilar sonini tanlang"
+        val markup = createReplyKeyboardMarkup(ridersQuantityList, 4)
+
+        return listOf(sendMessage(update, replyTex, markup))
+    }
+
+    private fun reviewTrip(update: Update): List<SendMessage> {
+        trip.ridersQuantity = update.message.text.toInt()
 
         val replyText = generateTripAnnouncement() +
                 "\nE’lon berish uchun yoki yo'ovchi qidirish uchun quyidagi botdan foydalaning @$botName"
@@ -202,8 +213,8 @@ class ClientMessageService
         trip.telegramUser = user
         tripService.save(trip)
 
-        val replyTextClient = "#${trip.id} raqamli e'lon joylashtirildi" +
-                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${trip.telegramMessageId}" +
+        val replyTextClient = "#️⃣${trip.id} raqamli e'lon joylashtirildi" +
+                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${trip.telegramMessageId} \n" +
                 generateTripAnnouncement() +
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
@@ -226,7 +237,7 @@ class ClientMessageService
 
         drivers.forEach {
             val text = "Quyidagi mijoz haydovchi qidirmoqda. " +
-                    "\n\n E'lon: ${trip.id}" +
+                    "\n\n #️⃣${trip.id} raqamli e'lon" +
                     "\n ${generateTripAnnouncement()}" +
                     "\n\n - Ushbu so'rovni qabul qilsangiz mijoz bilan bog'laning. " +
                     "\n - Kelushuvga kelganingizdan so'ng \"Qabul qilish\" tugmasini bosing" +
@@ -373,6 +384,7 @@ class ClientMessageService
         "\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
         "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
         "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
+        "\n \uD83D\uDC65 Yo'lovchi soni: ${trip.ridersQuantity}" +
         "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("${user.phone}")}" +
         "\n" +
         "\n #${trip.getTripStartPlace()?.substringBefore(" ")}${trip.getTripEndPlace()?.substringBefore(" ")}${trip.type}" +
@@ -402,7 +414,7 @@ class ClientMessageService
         const val BEAN_PREFIX = "clientMessageService"
 
         //start
-        val btnNeedTaxi = "${TripType.CLIENT.emoji} Menga haydovchi kerak"
+        val btnNeedTaxi = "${TripType.CLIENT.emoji} Men yo'lovchiman"
         val btnNeedToSendPost = "${TripType.POST.emoji} Pochta jo'natmoqchiman"
         val btnIamTaxi = "${TripType.TAXI.emoji} Men haydovchiman"
         const val btnMainMenu = "\uD83C\uDFE0 Bosh sahifaga qaytish"
@@ -422,6 +434,7 @@ class ClientMessageService
         //notify-drivers
         const val btnAcceptClientRequest = "✅ Qabul qilish"
         const val btnDenyClientRequest = "❌ Rad qilish"
+        //driver-details
         const val btnSaveDriverDetails = "✅ Saqlash"
         const val btnCancelDriverDetails = "❌ Bekor qilish"
 

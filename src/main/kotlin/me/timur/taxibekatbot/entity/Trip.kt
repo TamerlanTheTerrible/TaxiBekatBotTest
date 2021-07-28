@@ -33,6 +33,9 @@ class Trip() {
     @JoinColumn(name = "to_sub_region")
     var to: SubRegion? = null
 
+    @Column(name = "riders_quantity")
+    var ridersQuantity: Int = 1
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     var telegramUser: TelegramUser? = null
