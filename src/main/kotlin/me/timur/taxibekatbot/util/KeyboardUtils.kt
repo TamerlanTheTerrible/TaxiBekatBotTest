@@ -1,33 +1,30 @@
 package me.timur.taxibekatbot.util
 
-import me.timur.taxibekatbot.util.KeyboardUtils.createInlineButton
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
 
 object KeyboardUtils {
 
-    fun createReplyKeyboardMarkup(vararg texts: String): ReplyKeyboardMarkup {
-        return createReplyKeyboardMarkup(texts.asList())
+    fun createReplyKeyboardMarkup(vararg texts: String, columns: Int = 2): ReplyKeyboardMarkup {
+        return createReplyKeyboardMarkup(texts.asList(), columns)
     }
 
-    fun createReplyKeyboardMarkup(texts: Collection<String>): ReplyKeyboardMarkup {
-        val keyboard = createKeyboard(texts)
+    fun createReplyKeyboardMarkup(texts: Collection<String>, columns: Int = 2): ReplyKeyboardMarkup {
+        val keyboard = createKeyboard(texts, columns)
         return ReplyKeyboardMarkup(keyboard, true, true, false)
     }
 
-    fun createKeyboard(vararg texts: String): ArrayList<KeyboardRow> {
-        return createKeyboard(texts.asList())
+    fun createKeyboard(vararg texts: String, columns: Int = 2): ArrayList<KeyboardRow> {
+        return createKeyboard(texts.asList(), columns)
     }
 
-    fun createKeyboard(texts: Collection<String>): ArrayList<KeyboardRow> {
+    fun createKeyboard(texts: Collection<String>, columns: Int = 2): ArrayList<KeyboardRow> {
         val keyboard = ArrayList<KeyboardRow>()
         var keyboardRow = KeyboardRow()
 
         texts.forEachIndexed { index, text ->
-            if (index % 2 == 0){
+            if (index % columns == 0){
                 keyboard.add(keyboardRow)
                 keyboardRow = KeyboardRow()
             }
@@ -44,35 +41,4 @@ object KeyboardUtils {
         keyboardRow.add(KeyboardButton(text))
         return keyboardRow
     }
-
-    fun createInlineButtonList(text: String, callback: String): List<InlineKeyboardButton> =
-        listOf(createInlineButton(text, callback))
-
-    fun createInlineButton(text: String, callback: String): InlineKeyboardButton =
-        InlineKeyboardButton(text).apply { callbackData = callback }
-}
-
-fun List<*>.toInlineKeyBoard(
-    callbackDataPrefix: String? = null,
-    fieldName: String? = null
-): InlineKeyboardMarkup{
-
-    val keyBoardList = ArrayList<List<InlineKeyboardButton>>()
-    var keyBoardRow = ArrayList<InlineKeyboardButton>()
-    val keyboardTextField = fieldName ?: "nameLatin"
-
-    this.forEachIndexed { index, it ->
-        val fieldValue = InvokeGetter.invokeGetter(it!!, keyboardTextField).toString()
-        val cbData = if (callbackDataPrefix == null) fieldValue else "${callbackDataPrefix}${fieldValue}"
-
-        keyBoardRow.add(createInlineButton(fieldValue, cbData))
-        if (index % 2 == 1) {
-            keyBoardList.add(keyBoardRow)
-            keyBoardRow = ArrayList()
-        }
-        else if (index == this.size - 1)
-            keyBoardList.add(keyBoardRow)
-    }
-
-    return InlineKeyboardMarkup().apply { this.keyboard = keyBoardList }
 }
