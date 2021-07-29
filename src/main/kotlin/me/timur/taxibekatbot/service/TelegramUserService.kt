@@ -15,16 +15,17 @@ class TelegramUserService
 @Autowired constructor(
     private val telegramUserRepository: TelegramUserRepository
 ){
+
+    fun findById(id: Long): TelegramUser {
+        return telegramUserRepository.findByIdOrNull(id)
+                ?: throw DataNotFoundException("Could not found TelegramUser with id $id")
+    }
+
     fun getOrSave(update: Update): TelegramUser {
         val user = getTelegramUser(update)
 
         return findByTelegramId(user.id)
             ?: save(TelegramUser(user))
-    }
-
-    fun findById(id: Long): TelegramUser {
-        return telegramUserRepository.findByIdOrNull(id)
-            ?: throw DataNotFoundException("Could not found TelegramUser with id $id")
     }
 
     fun saveUser(update: Update): TelegramUser {
@@ -34,6 +35,10 @@ class TelegramUserService
         telegramUser.chatId = update.getChatId()
 
         return save(telegramUser)
+    }
+
+    fun findByTelegramId(telegramId: Long): TelegramUser? {
+        return telegramUserRepository.findByTelegramId(telegramId)
     }
 
     fun savePhone(update: Update) {
@@ -46,9 +51,6 @@ class TelegramUserService
         if (update.hasMessage()) update.message.from
         else update.callbackQuery.from
 
-    private fun findByTelegramId(telegramId: Long): TelegramUser? {
-        return telegramUserRepository.findByTelegramId(telegramId)
-    }
 
     private fun save(telegramUser: TelegramUser): TelegramUser {
         return telegramUserRepository.save(telegramUser)

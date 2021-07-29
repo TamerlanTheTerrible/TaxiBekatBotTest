@@ -385,16 +385,16 @@ class ClientMessageService
     private fun acceptClientRequest(update: Update): List<BotApiMethod<Message>> {
         val tripId = update.message.text.substringAfter("#").substringBefore(" raqamli ").toLong()
         val trip = tripService.findById(tripId) ?: throw DataNotFoundException("Could not find trip with id $tripId")
-        val clientChatId = trip.telegramUser!!.chatId
+        val clientChatId = trip.telegramUser!!.chatId!!
 
-        val driverId = telegramUserService.findById(update.message.from.id)
+        val driver = telegramUserService.findByTelegramId(update.message.from.id)
+        val messageForClient = sendMessage(clientChatId, "${driver!!.id} is ready to get your trip $tripId")
 
-        val messageForClient = sendMessage(clientChatId, "")
 
         val replyText = "Qabul qilindi. Mijoz tomonidan tasdiq kutilmoqda"
         val markup = createReplyKeyboardMarkup(btnMainMenu)
         val messageForDriver = sendMessage(update, replyText, markup)
-        return listOf()
+        return listOf(messageForClient, messageForDriver)
     }
 
     //GENERAL METHODS
