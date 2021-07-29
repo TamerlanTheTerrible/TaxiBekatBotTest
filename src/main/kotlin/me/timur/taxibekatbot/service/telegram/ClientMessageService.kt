@@ -25,6 +25,7 @@ import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.MessageEntity
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
@@ -93,6 +94,7 @@ class ClientMessageService
                 carNames.any { it == update.message.text } -> previewDriverData(update)
                 update.message.text == btnSaveDriverDetails -> saveDriverDetails(update)
                 update.message.text == btnCancelDriverDetails -> cancelDriverDetails(update)
+                update.message.text == btnAcceptClientRequest -> acceptClientRequest(update)
 
                 containsPhone(update) -> chooseRidersQuantity(update)
                     else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
@@ -230,22 +232,21 @@ class ClientMessageService
     }
 
     private fun notifyMatchingDrivers(newTrip: Trip): List<BotApiMethod<Message>> {
-        trip = newTrip
         val drivers = driverService.findAllByMatchingRoute(newTrip).toHashSet()
 
         val notifications = arrayListOf<BotApiMethod<Message>>()
 
         drivers.forEach {
             val text = "Quyidagi mijoz haydovchi qidirmoqda. " +
-                    "\n\n #️⃣${trip.id} raqamli e'lon" +
+                    "\n\n #️⃣${newTrip.id} raqamli e'lon" +
                     "\n ${generateTripAnnouncement()}" +
                     "\n\n - Ushbu so'rovni qabul qilsangiz mijoz bilan bog'laning. " +
                     "\n - Kelushuvga kelganingizdan so'ng \"Qabul qilish\" tugmasini bosing" +
                     "\n - Agar so'rov mijoz tomonidanam tasdiqlansa sizga xabar keladi"
 
-
             val markup = createReplyKeyboardMarkup(btnAcceptClientRequest, btnDenyClientRequest)
             val notification = sendMessage(it.telegramUser.chatId!!, text, markup)
+
             notifications.add(notification)
         }
 
@@ -380,6 +381,10 @@ class ClientMessageService
         return listOf(sendMessage(update, replyText, markup))
     }
 
+    private fun acceptClientRequest(update: Update): List<BotApiMethod<Message>> {
+    }
+
+    //GENERAL METHODS
     private fun generateTripAnnouncement(): String =
         "\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
         "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
