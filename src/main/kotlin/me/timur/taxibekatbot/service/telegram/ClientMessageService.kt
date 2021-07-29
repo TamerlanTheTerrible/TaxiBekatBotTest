@@ -1,6 +1,8 @@
 package me.timur.taxibekatbot.service.telegram
 
-import me.timur.taxibekatbot.entity.*
+import me.timur.taxibekatbot.entity.Driver
+import me.timur.taxibekatbot.entity.TelegramUser
+import me.timur.taxibekatbot.entity.Trip
 import me.timur.taxibekatbot.enum.TripType
 import me.timur.taxibekatbot.exception.DataNotFoundException
 import me.timur.taxibekatbot.repository.CarRepository
@@ -13,9 +15,9 @@ import me.timur.taxibekatbot.util.KeyboardUtils.createReplyKeyboardMarkup
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
 import me.timur.taxibekatbot.util.UpdateUtil.getChatId
-import me.timur.taxibekatbot.util.getStringAfter
 import me.timur.taxibekatbot.util.UpdateUtil.sendMessage
 import me.timur.taxibekatbot.util.getMessageId
+import me.timur.taxibekatbot.util.getStringAfter
 import me.timur.taxibekatbot.util.getStringBefore
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -24,11 +26,12 @@ import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.objects.Update
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Message
-import org.telegram.telegrambots.meta.api.objects.MessageEntity
+import org.telegram.telegrambots.meta.api.objects.Update
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
 import java.time.LocalDate
@@ -95,11 +98,16 @@ class ClientMessageService
                 carNames.any { it == update.message.text } -> previewDriverData(update)
                 update.message.text == btnSaveDriverDetails -> saveDriverDetails(update)
                 update.message.text == btnCancelDriverDetails -> cancelDriverDetails(update)
-                update.message.text == btnAcceptClientRequest -> acceptClientRequest(update)
 
-                containsPhone(update) -> chooseRidersQuantity(update)
-                    else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
+                containsPhone(update) -> if (trip.type == TripType.CLIENT) chooseRidersQuantity(update) else reviewTrip(update)
+                else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
+            update.hasCallbackQuery() -> when {
+                //TAXI
+                update.callbackQuery.data.contains(btnAcceptClientRequest) -> acceptClientRequest(update)
+                update.callbackQuery.data.contains(btnDenyClientRequest) -> denyClientRequest(update)
+                else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
+            }
             else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
         }
 
@@ -159,7 +167,7 @@ class ClientMessageService
         }
 
         val markup = createReplyKeyboardMarkup(datesToChoseFrom)
-        val replyText = "\uD83D\uDCC5 Sa'nani kiriting"
+        val replyText = "\uD83D\uDCC5 Qachon yo'lga chiqmoqchisiz?"
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -222,7 +230,7 @@ class ClientMessageService
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
 
-        val messageToClient = sendMessage(update, replyTextClient, ReplyKeyboardRemove(true))
+        val messageToClient = sendMessage(update, replyTextClient, createReplyKeyboardMarkup(btnMainMenu))
         val messageToForward = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, getChatId(update), messageId-1)
         val messages = arrayListOf(messageToClient, messageToForward)
 
@@ -241,11 +249,15 @@ class ClientMessageService
             val text = "Quyidagi mijoz haydovchi qidirmoqda. " +
                     "\n\n #️⃣${newTrip.id} raqamli e'lon" +
                     "\n ${generateTripAnnouncement()}" +
-                    "\n\n - Ushbu so'rovni qabul qilsangiz mijoz bilan bog'laning. " +
+                    "\n - Ushbu so'rovni qabul qilsangiz mijoz bilan bog'laning. " +
                     "\n - Kelushuvga kelganingizdan so'ng \"Qabul qilish\" tugmasini bosing" +
                     "\n - Agar so'rov mijoz tomonidanam tasdiqlansa sizga xabar keladi"
 
-            val markup = createReplyKeyboardMarkup(btnAcceptClientRequest, btnDenyClientRequest)
+            val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
+                InlineKeyboardButton(btnAcceptClientRequest).apply { this.callbackData = btnAcceptClientRequest + newTrip.id },
+                InlineKeyboardButton(btnDenyClientRequest).apply { this.callbackData = btnDenyClientRequest + newTrip.id },
+                ))
+            }
             val notification = sendMessage(it.telegramUser.chatId!!, text, markup)
 
             notifications.add(notification)
@@ -383,18 +395,35 @@ class ClientMessageService
     }
 
     private fun acceptClientRequest(update: Update): List<BotApiMethod<Message>> {
-        val tripId = update.message.text.substringAfter("#").substringBefore(" raqamli ").toLong()
+        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
         val trip = tripService.findById(tripId) ?: throw DataNotFoundException("Could not find trip with id $tripId")
         val clientChatId = trip.telegramUser!!.chatId!!
-
-        val driver = telegramUserService.findByTelegramId(update.message.from.id)
+        val driver = telegramUserService.findByTelegramId(update.callbackQuery.from.id)
         val messageForClient = sendMessage(clientChatId, "${driver!!.id} is ready to get your trip $tripId")
 
-
-        val replyText = "Qabul qilindi. Mijoz tomonidan tasdiq kutilmoqda"
+        val replyText = update.callbackQuery.message.text.substringAfter("Quyidagi mijoz haydovchi qidirmoqda.").substringBefore("- Ushbu") +
+                "\n\n✅ Siz e'lonni qabul qildingiz va javobingiz mijozga yuborildi" +
+                "\n\n\uD83E\uDD1D Mijoz sizni tanlasa, sizga xabar beramiz" +
+                "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
         val markup = createReplyKeyboardMarkup(btnMainMenu)
         val messageForDriver = sendMessage(update, replyText, markup)
-        return listOf(messageForClient, messageForDriver)
+
+        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
+
+        return listOf(messageForClient, deleteMsg, messageForDriver)
+    }
+
+    private fun denyClientRequest(update: Update): List<BotApiMethod<Message>> {
+        val tripId = update.callbackQuery.data.substringAfter(btnDenyClientRequest).toLong()
+        val replyText = "\n❌ Siz $tripId raqamli e'lonni rad etdingiz" +
+                "\n\n\uD83E\uDD1D Boshqa mos e'lonlar paydo bo'lsa sizga xabar beramiz" +
+                "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
+        val markup = createReplyKeyboardMarkup(btnMainMenu)
+        val messageForDriver = sendMessage(update, replyText, markup)
+
+        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
+
+        return listOf(deleteMsg, messageForDriver)
     }
 
     //GENERAL METHODS

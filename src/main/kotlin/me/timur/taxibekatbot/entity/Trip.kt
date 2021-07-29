@@ -34,7 +34,7 @@ class Trip() {
     var to: SubRegion? = null
 
     @Column(name = "riders_quantity")
-    var ridersQuantity: Int = 1
+    var ridersQuantity: Int = 0
 
     @ManyToOne
     @JoinColumn(name = "user_id")
