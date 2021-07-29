@@ -2,6 +2,7 @@ package me.timur.taxibekatbot.service.telegram
 
 import me.timur.taxibekatbot.entity.*
 import me.timur.taxibekatbot.enum.TripType
+import me.timur.taxibekatbot.exception.DataNotFoundException
 import me.timur.taxibekatbot.repository.CarRepository
 import me.timur.taxibekatbot.repository.FrameRouteRepository
 import me.timur.taxibekatbot.repository.RegionRepository
@@ -382,6 +383,18 @@ class ClientMessageService
     }
 
     private fun acceptClientRequest(update: Update): List<BotApiMethod<Message>> {
+        val tripId = update.message.text.substringAfter("#").substringBefore(" raqamli ").toLong()
+        val trip = tripService.findById(tripId) ?: throw DataNotFoundException("Could not find trip with id $tripId")
+        val clientChatId = trip.telegramUser!!.chatId
+
+        val driverId = telegramUserService.findById(update.message.from.id)
+
+        val messageForClient = sendMessage(clientChatId, "")
+
+        val replyText = "Qabul qilindi. Mijoz tomonidan tasdiq kutilmoqda"
+        val markup = createReplyKeyboardMarkup(btnMainMenu)
+        val messageForDriver = sendMessage(update, replyText, markup)
+        return listOf()
     }
 
     //GENERAL METHODS

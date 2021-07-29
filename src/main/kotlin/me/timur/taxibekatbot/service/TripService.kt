@@ -5,6 +5,7 @@ import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.enum.TripType
 import me.timur.taxibekatbot.repository.TripRepository
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 
 @Service
@@ -12,6 +13,11 @@ class TripService
 @Autowired constructor(
     private val tripRepository: TripRepository
 ){
+
+    fun findById(tripId: Long): Trip? {
+        return tripRepository.findByIdOrNull(tripId)
+    }
+
     fun save(trip: Trip): Trip {
         return tripRepository.save(trip)
     }
