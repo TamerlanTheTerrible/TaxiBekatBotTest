@@ -51,6 +51,9 @@ class Trip() {
     @JoinColumn(name = "confirmed_driver")
     var driver: Driver? = null
 
+    @Column(name = "meet_place")
+    var meetPlace: String = "pitak"
+
 
     constructor(
             tripType: TripType?,

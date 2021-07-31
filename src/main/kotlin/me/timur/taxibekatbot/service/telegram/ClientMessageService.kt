@@ -27,6 +27,7 @@ import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
+import org.telegram.telegrambots.meta.api.objects.Location
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -91,6 +92,8 @@ class ClientMessageService
                 toRegionNames.any { it == update.message.text } -> chooseToSubRegion(update)
                 toSubRegionNames.any{ it == update.message.text} -> chooseDate(update)
                 ridersQuantityList.any { it == update.message.text } -> reviewTrip(update)
+//                update.message.text == btnFromPitak -> reviewTrip(update)
+//                update.message.location != null -> reviewTrip(update)
                 //taxi
                 update.message.text == btnIamTaxi -> chooseTaxiFrameRoute(update)
                 taxiFrameRoutes.any { it == update.message.text } -> chooseFirstTaxiRoute(update)
@@ -176,16 +179,13 @@ class ClientMessageService
         val dateInString = update.message.text
         trip.tripDate = if (dateInString == btnToday) LocalDate.now() else LocalDate.now().plusDays(1)
 
-        val button = KeyboardButton().apply {
-            this.text = "\uD83D\uDCF1Raqamni yuborish"
-            this.requestContact = true
-        }
+        val button = KeyboardButton("\uD83D\uDCF1Raqamni yuborish", true, false, null)
 
         val keyboard = KeyboardRow().apply { add(button) }
         val markup = ReplyKeyboardMarkup(listOf(keyboard), true, true, false)
 
         val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
-                "\"\uD83D\uDCF1Raqamni yuborish\" tugmachasini bosing ⬇"
+                "\"\uD83D\uDCF1Raqamni yuborish\" tugmachasini bosing"
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -193,10 +193,24 @@ class ClientMessageService
     private fun chooseRidersQuantity(update: Update): List<BotApiMethod<Message>> {
         telegramUserService.savePhone(update)
 
-        val replyTex = "Yo'lovchilar sonini tanlang"
+        val replyText = "Yo'lovchilar sonini tanlang"
         val markup = createReplyKeyboardMarkup(ridersQuantityList, 4)
 
-        return listOf(sendMessage(update, replyTex, markup))
+        return listOf(sendMessage(update, replyText, markup))
+    }
+
+    private fun requestLocation(update: Update): List<BotApiMethod<Message>> {
+        trip.ridersQuantity = update.message.text.toInt()
+
+        val replyText = "Haydovchi sizni qayerdan olib ketishini xohlaysiz?"
+
+        val buttonPitakdan = KeyboardButton(btnFromPitak)
+        val buttonLocation = KeyboardButton("\uD83D\uDCCDHozirgi turgan joyimdan", false, true, null)
+
+        val keyboard = KeyboardRow().apply { add(buttonPitakdan) }.apply { add(buttonLocation) }
+        val markup = ReplyKeyboardMarkup(listOf(keyboard), true, true, false)
+
+        return listOf(sendMessage(update, replyText, markup))
     }
 
     private fun reviewTrip(update: Update): List<SendMessage> {
@@ -208,6 +222,14 @@ class ClientMessageService
         val markup = createReplyKeyboardMarkup(btnSaveTrip, btnChangeTrip)
 
         return listOf(sendMessage(update, replyText, markup))
+    }
+
+    private fun getLocation(update: Update): String {
+        val location = update.message.location
+        return if (location == null)
+            "pitak"
+        else
+            "${location.longitude}, ${location.latitude}"
     }
 
     private fun denyTrip(update: Update): List<SendMessage> {
@@ -248,10 +270,7 @@ class ClientMessageService
         drivers.forEach {
             val text = "Quyidagi mijoz haydovchi qidirmoqda. " +
                     "\n\n #️⃣${newTrip.id} raqamli e'lon" +
-                    "\n ${generateTripAnnouncement()}" +
-                    "\n - Ushbu so'rovni qabul qilsangiz mijoz bilan bog'laning. " +
-                    "\n - Kelushuvga kelganingizdan so'ng \"Qabul qilish\" tugmasini bosing" +
-                    "\n - Agar so'rov mijoz tomonidanam tasdiqlansa sizga xabar keladi"
+                    "\n ${generateTripAnnouncement()}"
 
             val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
                 InlineKeyboardButton(btnAcceptClientRequest).apply { this.callbackData = btnAcceptClientRequest + newTrip.id },
@@ -401,7 +420,7 @@ class ClientMessageService
         val driver = telegramUserService.findByTelegramId(update.callbackQuery.from.id)
         val messageForClient = sendMessage(clientChatId, "${driver!!.id} is ready to get your trip $tripId")
 
-        val replyText = update.callbackQuery.message.text.substringAfter("Quyidagi mijoz haydovchi qidirmoqda.").substringBefore("- Ushbu") +
+        val replyText = update.callbackQuery.message.text.substringAfter("Quyidagi mijoz haydovchi qidirmoqda.") +
                 "\n\n✅ Siz e'lonni qabul qildingiz va javobingiz mijozga yuborildi" +
                 "\n\n\uD83E\uDD1D Mijoz sizni tanlasa, sizga xabar beramiz" +
                 "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
@@ -472,6 +491,7 @@ class ClientMessageService
         const val btnToday = "Bugun"
         const val btnTomorrow = "Ertaga"
         val datesToChoseFrom = listOf(btnToday, btnTomorrow)
+        const val btnFromPitak = "Pitakdan"
         //review announcement
         const val btnSaveTrip = "✅ E'lonni joylash"
         const val btnChangeTrip = "✏ E'lonni o'zgartirish"
