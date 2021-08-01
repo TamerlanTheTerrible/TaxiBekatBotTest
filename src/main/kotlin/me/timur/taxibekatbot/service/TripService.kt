@@ -3,6 +3,7 @@ package me.timur.taxibekatbot.service
 import me.timur.taxibekatbot.entity.Trip
 import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.enum.TripType
+import me.timur.taxibekatbot.exception.DataNotFoundException
 import me.timur.taxibekatbot.repository.TripRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.repository.findByIdOrNull
@@ -14,8 +15,9 @@ class TripService
     private val tripRepository: TripRepository
 ){
 
-    fun findById(tripId: Long): Trip? {
-        return tripRepository.findByIdOrNull(tripId)
+    fun findById(tripId: Long): Trip {
+        return tripRepository.findByIdOrNull(tripId) ?:
+        throw DataNotFoundException("Could not find trip with id $tripId")
     }
 
     fun save(trip: Trip): Trip {

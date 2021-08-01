@@ -27,7 +27,6 @@ import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
-import org.telegram.telegrambots.meta.api.objects.Location
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -414,12 +413,6 @@ class ClientMessageService
     }
 
     private fun acceptClientRequest(update: Update): List<BotApiMethod<Message>> {
-        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
-        val trip = tripService.findById(tripId) ?: throw DataNotFoundException("Could not find trip with id $tripId")
-        val clientChatId = trip.telegramUser!!.chatId!!
-        val driver = telegramUserService.findByTelegramId(update.callbackQuery.from.id)
-        val messageForClient = sendMessage(clientChatId, "${driver!!.id} is ready to get your trip $tripId")
-
         val replyText = update.callbackQuery.message.text.substringAfter("Quyidagi mijoz haydovchi qidirmoqda.") +
                 "\n\n✅ Siz e'lonni qabul qildingiz va javobingiz mijozga yuborildi" +
                 "\n\n\uD83E\uDD1D Mijoz sizni tanlasa, sizga xabar beramiz" +
@@ -427,9 +420,26 @@ class ClientMessageService
         val markup = createReplyKeyboardMarkup(btnMainMenu)
         val messageForDriver = sendMessage(update, replyText, markup)
 
+        val messageForClient = notifyClient(update)
         val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
 
         return listOf(messageForClient, deleteMsg, messageForDriver)
+    }
+
+    private fun notifyClient(update: Update): SendMessage {
+        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
+        val trip = tripService.findById(tripId)
+        val driver = driverService.findDriverByTelegramUser(update.callbackQuery.from.id)
+
+        val clientChatId = trip.telegramUser!!.chatId!!
+        val replyText = "\uD83C\uDD94 ${driver.id} raqamiy haydovchi #${trip.id} raqamli so'rovingizni bajarishga tayyor" +
+                "\n \uD83D\uDE99 $driver."
+        val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
+            InlineKeyboardButton(btnAcceptDriverRequest).apply { this.callbackData = btnAcceptDriverRequest + driver.id + "trip" + trip.id },
+            InlineKeyboardButton(btnDenyDriverRequest).apply { this.callbackData = btnDenyDriverRequest + driver.id + "trip" + trip.id },
+        ))
+        }
+        return sendMessage(clientChatId, replyText, markup)
     }
 
     private fun denyClientRequest(update: Update): List<BotApiMethod<Message>> {
@@ -498,6 +508,9 @@ class ClientMessageService
         const val btnChangeTrip = "✏ E'lonni o'zgartirish"
         //deny trip
         const val btnStartNewTrip = "Ya'ngi e'lon berish"
+        //notify-client
+        const val btnAcceptDriverRequest = "✅ Haydovchini qabul qilish"
+        const val btnDenyDriverRequest = "❌ Haydovchini rad qilish"
 
         //notify-drivers
         const val btnAcceptClientRequest = "✅ Qabul qilish"
