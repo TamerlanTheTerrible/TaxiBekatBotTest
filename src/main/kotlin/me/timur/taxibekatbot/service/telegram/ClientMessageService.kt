@@ -92,8 +92,7 @@ class ClientMessageService
                 toRegionNames.any { it == update.message.text } -> chooseToSubRegion(update)
                 toSubRegionNames.any{ it == update.message.text} -> chooseDate(update)
                 ridersQuantityList.any { it == update.message.text } -> reviewTrip(update)
-//                update.message.text == btnFromPitak -> reviewTrip(update)
-//                update.message.location != null -> reviewTrip(update)
+
                 //taxi
                 update.message.text == btnIamTaxi -> chooseTaxiFrameRoute(update)
                 taxiFrameRoutes.any { it == update.message.text } -> chooseFirstTaxiRoute(update)
@@ -214,7 +213,8 @@ class ClientMessageService
     }
 
     private fun reviewTrip(update: Update): List<SendMessage> {
-        trip.ridersQuantity = update.message.text.toInt()
+        if (trip.type == TripType.CLIENT)
+            trip.ridersQuantity = update.message.text.toInt()
 
         val replyText = generateTripAnnouncement() +
                 "\nE’lon berish uchun yoki yo'ovchi qidirish uchun quyidagi botdan foydalaning @$botName"
@@ -247,13 +247,13 @@ class ClientMessageService
         tripService.save(trip)
 
         val replyTextClient = "#️⃣${trip.id} raqamli e'lon joylashtirildi" +
-                "\n $CHANNEL_LINK_TAXI_BEKAT_TEST/${trip.telegramMessageId} \n" +
+                "\n $GROUP_LINK_TAXI_BEKAT_TEST \n" +
                 generateTripAnnouncement() +
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
 
         val messageToClient = sendMessage(update, replyTextClient, createReplyKeyboardMarkup(btnMainMenu))
-        val messageToForward = ForwardMessage(CHANNEL_ID_TAXI_BEKAT_TEST, getChatId(update), messageId-1)
+        val messageToForward = ForwardMessage(GROUP_ID_TAXI_BEKAT_TEST, getChatId(update), messageId-1)
         val messages = arrayListOf(messageToClient, messageToForward)
 
         val notificationForDrivers = notifyMatchingDrivers(trip)
@@ -480,8 +480,8 @@ class ClientMessageService
         const val BEAN_PREFIX = "clientMessageService"
 
         //start
-        val btnNeedTaxi = "${TripType.CLIENT.emoji} Men yo'lovchiman"
-        val btnNeedToSendPost = "${TripType.POST.emoji} Pochta jo'natmoqchiman"
+        val btnNeedTaxi = "${TripType.CLIENT.emoji} Мен йуловчиман"
+        val btnNeedToSendPost = "${TripType.POST.emoji} Почта"
         val btnIamTaxi = "${TripType.TAXI.emoji} Men haydovchiman"
         const val btnMainMenu = "\uD83C\uDFE0 Bosh sahifaga qaytish"
 
@@ -508,6 +508,8 @@ class ClientMessageService
         //channel links and names
         const val CHANNEL_ID_TAXI_BEKAT_TEST = "@taxi_bekat_test_chanel"
         const val CHANNEL_LINK_TAXI_BEKAT_TEST = "https://t.me/taxi_bekat_test_chanel"
+        const val GROUP_ID_TAXI_BEKAT_TEST = "-404646626"
+        const val GROUP_LINK_TAXI_BEKAT_TEST = "https://t.me/joinchat/InD8kQkNoK02MGVi"
     }
 
 }
