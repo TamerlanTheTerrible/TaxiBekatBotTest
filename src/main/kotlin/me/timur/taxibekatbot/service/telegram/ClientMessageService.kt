@@ -246,8 +246,8 @@ class ClientMessageService
         trip.telegramUser = user
         tripService.save(trip)
 
-        val replyTextClient = "#️⃣${trip.id} raqamli e'lon joylashtirildi" +
-                "\n $GROUP_LINK_TAXI_BEKAT_TEST \n" +
+        val replyTextClient =
+//                "\n $GROUP_LINK_TAXI_BEKAT_TEST \n" +
                 generateTripAnnouncement() +
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
@@ -447,7 +447,8 @@ class ClientMessageService
 
     //GENERAL METHODS
     private fun generateTripAnnouncement(): String =
-        "\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
+        "#️⃣${trip.id} raqamli e'lon joylashtirildi" +
+        "\n\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
         "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
         "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
         "\n \uD83D\uDC65 Yo'lovchi soni: ${trip.ridersQuantity}" +
