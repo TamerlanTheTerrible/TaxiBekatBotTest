@@ -3,8 +3,8 @@ package me.timur.taxibekatbot.service.telegram
 import me.timur.taxibekatbot.entity.Driver
 import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.entity.Trip
+import me.timur.taxibekatbot.enum.TripStatus
 import me.timur.taxibekatbot.enum.TripType
-import me.timur.taxibekatbot.exception.DataNotFoundException
 import me.timur.taxibekatbot.repository.CarRepository
 import me.timur.taxibekatbot.repository.FrameRouteRepository
 import me.timur.taxibekatbot.repository.RegionRepository
@@ -104,6 +104,8 @@ class ClientMessageService
                 else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
             update.hasCallbackQuery() -> when {
+                //CLIENT
+                update.callbackQuery.data.contains(btnAcceptDriverRequest) -> acceptDriverRequest(update)
                 //TAXI
                 update.callbackQuery.data.contains(btnAcceptClientRequest) -> acceptClientRequest(update)
                 update.callbackQuery.data.contains(btnDenyClientRequest) -> denyClientRequest(update)
@@ -246,7 +248,6 @@ class ClientMessageService
         tripService.save(trip)
 
         val replyTextClient =
-//                "\n $GROUP_LINK_TAXI_BEKAT_TEST \n" +
                 generateTripAnnouncement() +
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
@@ -315,6 +316,36 @@ class ClientMessageService
         val replyMarkup = createReplyKeyboardMarkup(toSubRegionNames)
 
         return listOf(sendMessage(update, "Qaysi shahar/tumanga", replyMarkup))
+    }
+
+    private fun acceptDriverRequest(update: Update): List<BotApiMethod<Message>> {
+        val tripId = update.callbackQuery.data.substringAfter("trip").toLong()
+
+        val driverId = update.callbackQuery.data.substringAfter(btnAcceptDriverRequest).substringBefore("trip").toLong()
+        val driver = driverService.findById(driverId)
+
+        tripService.closeTrip(tripId, driver)
+
+        val replyText = "Сиз #️⃣$tripId ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 ракамли хайдовчини " +
+                "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
+
+        TODO("add main menu button for client and driver")
+        val clientMessage = sendMessage(update, replyText)
+
+        val driverMessage = sendDriverAcceptanceNotification(driver, tripId)
+
+        return listOf(driverMessage)
+    }
+
+    private fun sendDriverAcceptanceNotification(
+        driver: Driver,
+        tripId: Long
+    ): SendMessage {
+        val chatId = driver.telegramUser.chatId
+        val replyText = "#️⃣$tripId ракамли эълон буйича суровингизни йуловчи кабул килди" +
+                "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
+        val driverMessage = sendMessage(chatId!!, replyText)
+        return driverMessage
     }
 
 
@@ -413,32 +444,51 @@ class ClientMessageService
     }
 
     private fun acceptClientRequest(update: Update): List<BotApiMethod<Message>> {
-        val replyText = update.callbackQuery.message.text.substringAfter("Quyidagi mijoz haydovchi qidirmoqda.") +
-                "\n\n✅ Siz e'lonni qabul qildingiz va javobingiz mijozga yuborildi" +
-                "\n\n\uD83E\uDD1D Mijoz sizni tanlasa, sizga xabar beramiz" +
-                "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
-        val markup = createReplyKeyboardMarkup(btnMainMenu)
-        val messageForDriver = sendMessage(update, replyText, markup)
+        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
+        val theTrip = tripService.findById(tripId)
 
+        if (theTrip.status != TripStatus.ACTIVE)
+            return sendDriverTripNotActiveNotification(update, tripId)
+
+        val messageForDriver = sendDriverAcceptanceAwaitNotification(update)
         val messageForClient = notifyClient(update)
         val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
 
         return listOf(messageForClient, deleteMsg, messageForDriver)
     }
 
-    private fun notifyClient(update: Update): SendMessage {
-        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
-        val trip = tripService.findById(tripId)
-        val driver = driverService.findDriverByTelegramUser(update.callbackQuery.from.id)
+    private fun sendDriverTripNotActiveNotification(update: Update, tripId: Long): List<BotApiMethod<Message>> {
+        val replyText = "\uD83C\uDD94 $tripId ракамли эълон учирилди ёки йуловчи тмонидан бошка хайдовчини танланди" +
+                "\n\n \uD83E\uDD1D бошкак мос эълон берилиши билан сизга хабар берамиз. Кунингиз хайирли утсин"
 
-        val clientChatId = trip.telegramUser!!.chatId!!
-        val replyText = "\uD83C\uDD94 ${driver.id} raqamiy haydovchi #${trip.id} raqamli so'rovingizni bajarishga tayyor" +
-                "\n \uD83D\uDE99 $driver."
+        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
+        return listOf(sendMessage(update, replyText), deleteMsg)
+    }
+
+    private fun sendDriverAcceptanceAwaitNotification(update: Update): SendMessage {
+        val replyText = update.callbackQuery.message.text.substringAfter("Quyidagi mijoz haydovchi qidirmoqda.") +
+                "\n\n✅ Siz e'lonni qabul qildingiz va javobingiz mijozga yuborildi" +
+                "\n\n\uD83E\uDD1D Mijoz sizni tanlasa, sizga xabar beramiz" +
+                "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
+        val markup = createReplyKeyboardMarkup(btnMainMenu)
+        return sendMessage(update, replyText, markup)
+    }
+
+    private fun notifyClient(update: Update): SendMessage {
+        val theDriver = driverService.findDriverByTelegramUser(update.callbackQuery.from.id)
+
+        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
+        val theTrip = tripService.findById(tripId)
+
+        val replyText = "\uD83C\uDD94 ${theDriver.id} ракамли хайдовчи #️⃣${theTrip.id} ракамли саёхатингизни амалга оширишга" +
+                "\n \uD83D\uDE99 $theDriver."
         val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
-            InlineKeyboardButton(btnAcceptDriverRequest).apply { this.callbackData = btnAcceptDriverRequest + driver.id + "trip" + trip.id },
-            InlineKeyboardButton(btnDenyDriverRequest).apply { this.callbackData = btnDenyDriverRequest + driver.id + "trip" + trip.id },
+            InlineKeyboardButton(btnAcceptDriverRequest).apply { this.callbackData = btnAcceptDriverRequest + theDriver.id + "trip" + theTrip.id },
+            InlineKeyboardButton(btnDenyDriverRequest).apply { this.callbackData = btnDenyDriverRequest + theDriver.id + "trip" + theTrip.id },
         ))
         }
+
+        val clientChatId = theTrip.telegramUser!!.chatId!!
         return sendMessage(clientChatId, replyText, markup)
     }
 

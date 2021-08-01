@@ -1,7 +1,9 @@
 package me.timur.taxibekatbot.service
 
+import me.timur.taxibekatbot.entity.Driver
 import me.timur.taxibekatbot.entity.Trip
 import me.timur.taxibekatbot.entity.TelegramUser
+import me.timur.taxibekatbot.enum.TripStatus
 import me.timur.taxibekatbot.enum.TripType
 import me.timur.taxibekatbot.exception.DataNotFoundException
 import me.timur.taxibekatbot.repository.TripRepository
@@ -18,6 +20,13 @@ class TripService
     fun findById(tripId: Long): Trip {
         return tripRepository.findByIdOrNull(tripId) ?:
         throw DataNotFoundException("Could not find trip with id $tripId")
+    }
+
+    fun closeTrip(tripId: Long, driver: Driver) {
+        val trip = findById(tripId)
+        trip.status = TripStatus.NOT_ACTIVE
+        trip.driver = driver
+        save(trip)
     }
 
     fun save(trip: Trip): Trip {

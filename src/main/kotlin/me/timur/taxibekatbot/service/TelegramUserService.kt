@@ -21,23 +21,28 @@ class TelegramUserService
                 ?: throw DataNotFoundException("Could not found TelegramUser with id $id")
     }
 
+    fun findByTelegramId(id: Long): TelegramUser {
+        return findByTelegramIdOrNull(id) ?:
+        throw DataNotFoundException("Could not find user by telegram id $id")
+    }
+
     fun getOrSave(update: Update): TelegramUser {
         val user = getTelegramUser(update)
 
-        return findByTelegramId(user.id)
+        return findByTelegramIdOrNull(user.id)
             ?: save(TelegramUser(user))
     }
 
     fun saveUser(update: Update): TelegramUser {
         val user = getTelegramUser(update)
 
-        val telegramUser = findByTelegramId(user.id) ?: TelegramUser(user)
+        val telegramUser = findByTelegramIdOrNull(user.id) ?: TelegramUser(user)
         telegramUser.chatId = update.getChatId()
 
         return save(telegramUser)
     }
 
-    fun findByTelegramId(telegramId: Long): TelegramUser? {
+    fun findByTelegramIdOrNull(telegramId: Long): TelegramUser? {
         return telegramUserRepository.findByTelegramId(telegramId)
     }
 
