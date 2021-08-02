@@ -217,7 +217,7 @@ class ClientMessageService
         if (trip.type == TripType.CLIENT)
             trip.ridersQuantity = update.message.text.toInt()
 
-        val replyText = generateTripAnnouncement() +
+        val replyText = generateTripAnnouncement(trip.id) +
                 "\nE’lon berish uchun yoki yo'ovchi qidirish uchun quyidagi botdan foydalaning @$botName"
 
         val markup = createReplyKeyboardMarkup(btnSaveTrip, btnChangeTrip)
@@ -248,7 +248,7 @@ class ClientMessageService
         tripService.save(trip)
 
         val replyTextClient =
-                generateTripAnnouncement() +
+                generateTripAnnouncement(trip.id) +
                 "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
 
@@ -269,8 +269,7 @@ class ClientMessageService
 
         drivers.forEach {
             val text = "Quyidagi mijoz haydovchi qidirmoqda. " +
-                    "\n\n #️⃣${newTrip.id} raqamli e'lon" +
-                    "\n ${generateTripAnnouncement()}"
+                    "\n ${generateTripAnnouncement(trip.id)}"
 
             val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
                 InlineKeyboardButton(btnAcceptClientRequest).apply { this.callbackData = btnAcceptClientRequest + newTrip.id },
@@ -326,26 +325,21 @@ class ClientMessageService
 
         tripService.closeTrip(tripId, driver)
 
-        val replyText = "Сиз #️⃣$tripId ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 ракамли хайдовчини " +
+        val replyText = "Сиз #️⃣$tripId ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 $driverId ракамли хайдовчини танладингиз" +
                 "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
 
-        TODO("add main menu button for client and driver")
-        val clientMessage = sendMessage(update, replyText)
+        val clientMessage = sendMessage(update, replyText, createReplyKeyboardMarkup(btnMainMenu))
 
         val driverMessage = sendDriverAcceptanceNotification(driver, tripId)
 
-        return listOf(driverMessage)
+        return listOf(clientMessage, driverMessage)
     }
 
-    private fun sendDriverAcceptanceNotification(
-        driver: Driver,
-        tripId: Long
-    ): SendMessage {
+    private fun sendDriverAcceptanceNotification(driver: Driver, tripId: Long): SendMessage {
         val chatId = driver.telegramUser.chatId
         val replyText = "#️⃣$tripId ракамли эълон буйича суровингизни йуловчи кабул килди" +
                 "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
-        val driverMessage = sendMessage(chatId!!, replyText)
-        return driverMessage
+        return sendMessage(chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
     }
 
 
@@ -506,8 +500,8 @@ class ClientMessageService
     }
 
     //GENERAL METHODS
-    private fun generateTripAnnouncement(): String =
-        "#️⃣${trip.id} raqamli e'lon joylashtirildi" +
+    private fun generateTripAnnouncement(tripId: Long?): String =
+        "#️⃣$tripId raqamli e'lon" +
         "\n\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
         "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
         "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
@@ -542,7 +536,7 @@ class ClientMessageService
 
         //start
         val btnNeedTaxi = "${TripType.CLIENT.emoji} Мен йуловчиман"
-        val btnNeedToSendPost = "${TripType.POST.emoji} Почта"
+        val btnNeedToSendPost = "${TripType.POST.emoji} Почта жунатмокчиман"
         val btnIamTaxi = "${TripType.TAXI.emoji} Men haydovchiman"
         const val btnMainMenu = "\uD83C\uDFE0 Bosh sahifaga qaytish"
 
