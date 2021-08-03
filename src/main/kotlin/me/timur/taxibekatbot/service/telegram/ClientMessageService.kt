@@ -327,16 +327,41 @@ class ClientMessageService
         val driverId = update.callbackQuery.data.substringAfter(btnAcceptDriverRequest).substringBefore("trip").toLong()
         val driver = driverService.findById(driverId)
 
-        tripService.closeTrip(trip, driver)
+        val deniedCandidacies = tripService.closeTripAndReturnDeniedCandidacies(trip, driver)
+        val deniedDriversMessages = notifyDeniedDrivers(deniedCandidacies)
 
-        val replyText = "Сиз #️⃣$tripId ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 $driverId ракамли хайдовчини танладингиз" +
-                "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
+        val acceptedDriverMessage = sendDriverAcceptanceNotification(driver, tripId)
 
-        val clientMessage = sendMessage(update, replyText, createReplyKeyboardMarkup(btnMainMenu))
+        val clientMessage = generateAfterTripCloseMessage(trip, driver)
 
-        val driverMessage = sendDriverAcceptanceNotification(driver, tripId)
+        return arrayListOf<BotApiMethod<Message>>(clientMessage, acceptedDriverMessage)
+            .apply { addAll(deniedDriversMessages) }
+    }
 
-        return listOf(clientMessage, driverMessage)
+    private fun notifyDeniedDrivers(deniedCandidacies: java.util.ArrayList<TripCandidacy>): List<BotApiMethod<Message>> {
+        val closedTrip = deniedCandidacies.first().trip
+        val messages = arrayListOf<BotApiMethod<Message>>()
+
+        deniedCandidacies.forEach {
+            val replyText = "Афсуски #️⃣${closedTrip.id} ракамли саёхат бошка хайдовчи томонидан амалга ошириш учун" +
+                    "\n\n Яна мос эълонлар берилиши билан сизга хабар берамиз"
+
+            val message = sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
+            messages.add(message)
+
+            val deleteMessage = DeleteMessage(it.driver.telegramUser.chatId!!, it.messageId) as BotApiMethod<Message>
+            messages.add(deleteMessage)
+        }
+
+        return messages
+    }
+
+    private fun generateAfterTripCloseMessage(trip: Trip, driver: Driver): SendMessage {
+        val replyText =
+            "Сиз #️⃣${trip.id} ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 ${driver.id} ракамли хайдовчини танладингиз" +
+                    "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
+
+        return sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
     }
 
     private fun sendDriverAcceptanceNotification(driver: Driver, tripId: Long): SendMessage {

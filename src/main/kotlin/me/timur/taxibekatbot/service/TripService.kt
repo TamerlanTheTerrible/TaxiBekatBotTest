@@ -35,15 +35,15 @@ class TripService
         return destinations
     }
 
-    fun closeTrip(trip: Trip, driver: Driver){
+    fun closeTripAndReturnDeniedCandidacies(trip: Trip, driver: Driver): ArrayList<TripCandidacy> {
         trip.status = TripStatus.NOT_ACTIVE
         trip.driver = driver
         save(trip)
 
-        denyOtherTripCandidacies(trip, driver)
+        return denyAndReturnOtherTripCandidacies(trip, driver)
     }
 
-    private fun denyOtherTripCandidacies(trip: Trip, driver: Driver): ArrayList<TripCandidacy> {
+    private fun denyAndReturnOtherTripCandidacies(trip: Trip, driver: Driver): ArrayList<TripCandidacy> {
         val deniedCandidates = ArrayList<TripCandidacy>()
         val tripCandidates = tripCandidacyRepository.findAllByTrip(trip)
         tripCandidates.forEach {
