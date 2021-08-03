@@ -22,8 +22,7 @@ class TripService
         throw DataNotFoundException("Could not find trip with id $tripId")
     }
 
-    fun closeTrip(tripId: Long, driver: Driver) {
-        val trip = findById(tripId)
+    fun closeTrip(trip: Trip, driver: Driver) {
         trip.status = TripStatus.NOT_ACTIVE
         trip.driver = driver
         save(trip)

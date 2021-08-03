@@ -18,4 +18,6 @@ class TripCandidacyService
     fun save(tripCandidacy: TripCandidacy): TripCandidacy {
         return tripCandidacyRepository.save(tripCandidacy)
     }
+
+
 }

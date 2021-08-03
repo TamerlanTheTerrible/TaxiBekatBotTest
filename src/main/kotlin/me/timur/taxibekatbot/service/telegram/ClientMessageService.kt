@@ -109,6 +109,7 @@ class ClientMessageService
             update.hasCallbackQuery() -> when {
                 //CLIENT
                 update.callbackQuery.data.contains(btnAcceptDriverRequest) -> acceptDriverRequest(update)
+                update.callbackQuery.data.contains(btnDenyDriverRequest) -> denyDriverRequest(update)
                 //TAXI
                 update.callbackQuery.data.contains(btnAcceptClientRequest) -> acceptClientRequest(update)
                 update.callbackQuery.data.contains(btnDenyClientRequest) -> denyClientRequest(update)
@@ -322,11 +323,14 @@ class ClientMessageService
 
     private fun acceptDriverRequest(update: Update): List<BotApiMethod<Message>> {
         val tripId = update.callbackQuery.data.substringAfter("trip").toLong()
+        val trip = tripService.findById(tripId)
 
         val driverId = update.callbackQuery.data.substringAfter(btnAcceptDriverRequest).substringBefore("trip").toLong()
         val driver = driverService.findById(driverId)
 
-        tripService.closeTrip(tripId, driver)
+        tripService.closeTrip(trip, driver)
+        TODO("delete other messages after trip is closed")
+        val candidacies = trip
 
         val replyText = "Сиз #️⃣$tripId ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 $driverId ракамли хайдовчини танладингиз" +
                 "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
