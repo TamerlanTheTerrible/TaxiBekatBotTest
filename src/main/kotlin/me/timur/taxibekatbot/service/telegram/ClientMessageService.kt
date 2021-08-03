@@ -3,6 +3,8 @@ package me.timur.taxibekatbot.service.telegram
 import me.timur.taxibekatbot.entity.Driver
 import me.timur.taxibekatbot.entity.TelegramUser
 import me.timur.taxibekatbot.entity.Trip
+import me.timur.taxibekatbot.entity.TripCandidacy
+import me.timur.taxibekatbot.enum.TripCandidacyStatus
 import me.timur.taxibekatbot.enum.TripStatus
 import me.timur.taxibekatbot.enum.TripType
 import me.timur.taxibekatbot.repository.CarRepository
@@ -47,7 +49,8 @@ class ClientMessageService
         private val frameRouteRepository: FrameRouteRepository,
         private val routeService: RouteService,
         private val carRepository: CarRepository,
-        private val driverService: DriverService
+        private val driverService: DriverService,
+        private val tripCandidacyService: TripCandidacyService
 ): MessageService{
     @Value("\${bot.username}")
     private lateinit var botName: String
@@ -438,15 +441,14 @@ class ClientMessageService
     }
 
     private fun acceptClientRequest(update: Update): List<BotApiMethod<Message>> {
-        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
-        val theTrip = tripService.findById(tripId)
+        val candidacy = generateTripCandidacy(update)
 
-        if (theTrip.status != TripStatus.ACTIVE)
-            return sendDriverTripNotActiveNotification(update, tripId)
+        if (candidacy.trip.status != TripStatus.ACTIVE)
+            return sendDriverTripNotActiveNotification(update, candidacy.trip.id!!)
 
         val messageForDriver = sendDriverAcceptanceAwaitNotification(update)
-        val messageForClient = notifyClient(update)
-        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
+        val messageForClient = notifyClient(candidacy.driver, candidacy.trip)
+        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), candidacy.messageId) as BotApiMethod<Message>
 
         return listOf(messageForClient, deleteMsg, messageForDriver)
     }
@@ -468,35 +470,43 @@ class ClientMessageService
         return sendMessage(update, replyText, markup)
     }
 
-    private fun notifyClient(update: Update): SendMessage {
-        val theDriver = driverService.findDriverByTelegramUser(update.callbackQuery.from.id)
+    private fun notifyClient(driver: Driver, trip: Trip): SendMessage {
+        val replyText = "\uD83C\uDD94 ${driver.id} ракамли хайдовчи #️⃣${trip.id} ракамли саёхатингизни амалга оширишга" +
+                "\n \uD83D\uDE99 $driver."
 
-        val tripId = update.callbackQuery.data.substringAfter(btnAcceptClientRequest).toLong()
-        val theTrip = tripService.findById(tripId)
-
-        val replyText = "\uD83C\uDD94 ${theDriver.id} ракамли хайдовчи #️⃣${theTrip.id} ракамли саёхатингизни амалга оширишга" +
-                "\n \uD83D\uDE99 $theDriver."
         val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
-            InlineKeyboardButton(btnAcceptDriverRequest).apply { this.callbackData = btnAcceptDriverRequest + theDriver.id + "trip" + theTrip.id },
-            InlineKeyboardButton(btnDenyDriverRequest).apply { this.callbackData = btnDenyDriverRequest + theDriver.id + "trip" + theTrip.id },
+            InlineKeyboardButton(btnAcceptDriverRequest).apply { this.callbackData = btnAcceptDriverRequest + driver.id + "trip" + trip.id },
+            InlineKeyboardButton(btnDenyDriverRequest).apply { this.callbackData = btnDenyDriverRequest + driver.id + "trip" + trip.id },
         ))
         }
 
-        val clientChatId = theTrip.telegramUser!!.chatId!!
+        val clientChatId = trip.telegramUser!!.chatId!!
         return sendMessage(clientChatId, replyText, markup)
     }
 
     private fun denyClientRequest(update: Update): List<BotApiMethod<Message>> {
-        val tripId = update.callbackQuery.data.substringAfter(btnDenyClientRequest).toLong()
-        val replyText = "\n❌ Siz $tripId raqamli e'lonni rad etdingiz" +
+        val tripCandidacy = generateTripCandidacy(update, TripCandidacyStatus.DENIED_BY_DRIVER)
+
+        val replyText = "\n❌ Siz ${tripCandidacy.trip.id} raqamli e'lonni rad etdingiz" +
                 "\n\n\uD83E\uDD1D Boshqa mos e'lonlar paydo bo'lsa sizga xabar beramiz" +
                 "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
         val markup = createReplyKeyboardMarkup(btnMainMenu)
         val messageForDriver = sendMessage(update, replyText, markup)
 
-        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
+        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), tripCandidacy.messageId) as BotApiMethod<Message>
 
         return listOf(deleteMsg, messageForDriver)
+    }
+
+    private fun generateTripCandidacy(update: Update, status: TripCandidacyStatus = TripCandidacyStatus.ACCEPTED_BY_DRIVER): TripCandidacy {
+        val tripId = update.callbackQuery.data.substringAfter(btnDenyClientRequest).toLong()
+        val theTrip = tripService.findById(tripId)
+        val theDriver = driverService.findDriverByTelegramUser(update.callbackQuery.from.id)
+        val messageId = update.callbackQuery.message.messageId
+
+        return tripCandidacyService.save(
+                TripCandidacy(theTrip, theDriver, messageId, status)
+        )
     }
 
     //GENERAL METHODS
