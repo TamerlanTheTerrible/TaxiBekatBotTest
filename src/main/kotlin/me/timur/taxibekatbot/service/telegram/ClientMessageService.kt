@@ -338,19 +338,11 @@ class ClientMessageService
             .apply { addAll(deniedDriversMessages) }
     }
 
-    private fun notifyDeniedDrivers(deniedCandidacies: java.util.ArrayList<TripCandidacy>): List<BotApiMethod<Message>> {
-        val closedTrip = deniedCandidacies.first().trip
+    private fun notifyDeniedDrivers(deniedCandidacies: ArrayList<TripCandidacy>): List<BotApiMethod<Message>> {
         val messages = arrayListOf<BotApiMethod<Message>>()
 
         deniedCandidacies.forEach {
-            val replyText = "Афсуски #️⃣${closedTrip.id} ракамли саёхат бошка хайдовчи томонидан амалга ошириш учун" +
-                    "\n\n Яна мос эълонлар берилиши билан сизга хабар берамиз"
-
-            val message = sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
-            messages.add(message)
-
-            val deleteMessage = DeleteMessage(it.driver.telegramUser.chatId!!, it.messageId) as BotApiMethod<Message>
-            messages.add(deleteMessage)
+            messages.addAll(notifyDeniedDrivers(it.driver, it.trip))
         }
 
         return messages
@@ -369,6 +361,27 @@ class ClientMessageService
         val replyText = "#️⃣$tripId ракамли эълон буйича суровингизни йуловчи кабул килди" +
                 "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
         return sendMessage(chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
+    }
+
+    private fun denyDriverRequest(update: Update): List<BotApiMethod<Message>> {
+        val tripId = update.callbackQuery.data.substringAfter("trip").toLong()
+        val trip = tripService.findById(tripId)
+
+        val driverId = update.callbackQuery.data.substringAfter(btnDenyDriverRequest).substringBefore("trip").toLong()
+        val driver = driverService.findById(driverId)
+
+        return notifyDeniedDrivers(driver, trip)
+    }
+
+    private fun notifyDeniedDrivers(driver: Driver, trip: Trip): List<BotApiMethod<Message>> {
+        val replyText = "Афсуски #️⃣${trip.id} ракамли саёхат бошка хайдовчи томонидан амалга ошириш учун" +
+                "\n\n Яна мос эълонлар берилиши билан сизга хабар берамиз"
+
+        val notification = sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
+
+        val tripCandidacy = tripService.findTripCandidacyByDriver(trip, driver)
+        val deleteMessage = DeleteMessage(driver.telegramUser.chatId!!, tripCandidacy.messageId) as BotApiMethod<Message>
+        return listOf(deleteMessage, notification)
     }
 
 

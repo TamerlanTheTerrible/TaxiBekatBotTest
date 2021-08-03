@@ -35,6 +35,11 @@ class TripService
         return destinations
     }
 
+    fun findTripCandidacyByDriver(trip: Trip, driver: Driver): TripCandidacy {
+        return tripCandidacyRepository.findByTripAndDriver(trip, driver) ?:
+        throw DataNotFoundException("Could not find TripCandidacy by trip ${trip.id} and driver ${driver.id}")
+    }
+
     fun closeTripAndReturnDeniedCandidacies(trip: Trip, driver: Driver): ArrayList<TripCandidacy> {
         trip.status = TripStatus.NOT_ACTIVE
         trip.driver = driver
