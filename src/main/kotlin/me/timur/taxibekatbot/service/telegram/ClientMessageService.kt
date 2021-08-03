@@ -49,8 +49,7 @@ class ClientMessageService
         private val frameRouteRepository: FrameRouteRepository,
         private val routeService: RouteService,
         private val carRepository: CarRepository,
-        private val driverService: DriverService,
-        private val tripCandidacyService: TripCandidacyService
+        private val driverService: DriverService
 ): MessageService{
     @Value("\${bot.username}")
     private lateinit var botName: String
@@ -329,8 +328,6 @@ class ClientMessageService
         val driver = driverService.findById(driverId)
 
         tripService.closeTrip(trip, driver)
-        TODO("delete other messages after trip is closed")
-        val candidacies = trip
 
         val replyText = "Сиз #️⃣$tripId ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 $driverId ракамли хайдовчини танладингиз" +
                 "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
@@ -508,7 +505,7 @@ class ClientMessageService
         val theDriver = driverService.findDriverByTelegramUser(update.callbackQuery.from.id)
         val messageId = update.callbackQuery.message.messageId
 
-        return tripCandidacyService.save(
+        return tripService.saveCandidacy(
                 TripCandidacy(theTrip, theDriver, messageId, status)
         )
     }
