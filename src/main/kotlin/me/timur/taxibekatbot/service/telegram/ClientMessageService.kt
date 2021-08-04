@@ -526,9 +526,9 @@ class ClientMessageService
     private fun denyClientRequest(update: Update): List<BotApiMethod<Message>> {
         val tripCandidacy = generateTripCandidacy(update, TripCandidacyStatus.DENIED_BY_DRIVER)
 
-        val replyText = "\n❌ Siz ${tripCandidacy.trip.id} raqamli e'lonni rad etdingiz" +
-                "\n\n\uD83E\uDD1D Boshqa mos e'lonlar paydo bo'lsa sizga xabar beramiz" +
-                "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
+        val replyText = "\n❌ Сиз ${tripCandidacy.trip.id} ракамли эълонни рад этдингиз" +
+                "\n\n\uD83E\uDD1D Бошка мос эълонлар пайдо булиши билан сизга хабар берамиз" +
+                "\n\n\uD83D\uDE4F Кунингиз хайирли утсин"
         val markup = createReplyKeyboardMarkup(btnMainMenu)
         val messageForDriver = sendMessage(update, replyText, markup)
 
