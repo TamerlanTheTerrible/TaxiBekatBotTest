@@ -112,9 +112,9 @@ class ClientMessageService
                 //TAXI
                 update.callbackQuery.data.contains(btnAcceptClientRequest) -> acceptClientRequest(update)
                 update.callbackQuery.data.contains(btnDenyClientRequest) -> denyClientRequest(update)
-                else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
+                else -> listOf(sendMessage(update, "Кутилмаган хатолик"))
             }
-            else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
+            else -> listOf(sendMessage(update, "Кутилмаган хатолик"))
         }
 
         return messages
@@ -126,7 +126,7 @@ class ClientMessageService
         user = telegramUserService.saveUser(update)
 
         val markup = createReplyKeyboardMarkup(btnNeedTaxi, btnNeedToSendPost, btnIamTaxi)
-        val responseText = "Assalomu alaykum. Nima qidirayapsiz?"
+        val responseText = "Ассалому алайкум. Нима кидираяпсиз?"
         return listOf(sendMessage(update, responseText, markup))
     }
 
@@ -152,7 +152,7 @@ class ClientMessageService
             keyboard.add(createKeyboardRow(btnNewClientRoute))
 
             val markup = ReplyKeyboardMarkup(keyboard, true, true, false)
-            listOf(sendMessage(update, "\uD83D\uDDFA Yo'nalishni tanlang", markup))
+            listOf(sendMessage(update, "\uD83D\uDDFA Йуналишни танланг", markup))
         }
     }
 
@@ -173,7 +173,7 @@ class ClientMessageService
         }
 
         val markup = createReplyKeyboardMarkup(datesToChoseFrom)
-        val replyText = "\uD83D\uDCC5 Qachon yo'lga chiqmoqchisiz?"
+        val replyText = "\uD83D\uDCC5 Качон йулга чикмокчисиз?"
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -182,13 +182,13 @@ class ClientMessageService
         val dateInString = update.message.text
         trip.tripDate = if (dateInString == btnToday) LocalDate.now() else LocalDate.now().plusDays(1)
 
-        val button = KeyboardButton("\uD83D\uDCF1Raqamni yuborish", true, false, null)
+        val button = KeyboardButton("\uD83D\uDCF1 Ракамни йубориш", true, false, null)
 
         val keyboard = KeyboardRow().apply { add(button) }
         val markup = ReplyKeyboardMarkup(listOf(keyboard), true, true, false)
 
-        val replyText = "Telefon raqamingizni kodi bilan kiriting yoki " +
-                "\"\uD83D\uDCF1Raqamni yuborish\" tugmachasini bosing"
+        val replyText = "Телефон ракамингизни тулик коди билан киритинг " +
+                "\"\uD83D\uDCF1 Ракамни йубориш\" тугмасини босинг"
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -196,7 +196,7 @@ class ClientMessageService
     private fun chooseRidersQuantity(update: Update): List<BotApiMethod<Message>> {
         telegramUserService.savePhone(update)
 
-        val replyText = "Yo'lovchilar sonini tanlang"
+        val replyText = "Йуловчилар сонини танланг"
         val markup = createReplyKeyboardMarkup(ridersQuantityList, 4)
 
         return listOf(sendMessage(update, replyText, markup))
@@ -205,10 +205,10 @@ class ClientMessageService
     private fun requestLocation(update: Update): List<BotApiMethod<Message>> {
         trip.ridersQuantity = update.message.text.toInt()
 
-        val replyText = "Haydovchi sizni qayerdan olib ketishini xohlaysiz?"
+        val replyText = "Хайдовчи сизни каердан олиб кетишини хохлайсиз?"
 
         val buttonPitakdan = KeyboardButton(btnFromPitak)
-        val buttonLocation = KeyboardButton("\uD83D\uDCCDHozirgi turgan joyimdan", false, true, null)
+        val buttonLocation = KeyboardButton("\uD83D\uDCCD Хозирги турган жойимдан", false, true, null)
 
         val keyboard = KeyboardRow().apply { add(buttonPitakdan) }.apply { add(buttonLocation) }
         val markup = ReplyKeyboardMarkup(listOf(keyboard), true, true, false)
@@ -221,7 +221,7 @@ class ClientMessageService
             trip.ridersQuantity = update.message.text.toInt()
 
         val replyText = generateTripAnnouncement(trip.id) +
-                "\nE’lon berish uchun yoki yo'ovchi qidirish uchun quyidagi botdan foydalaning @$botName"
+                "\nЭълон бериш учун ёки йуловчи кидириш учун куйидаги ботдан фойдаланинг @$botName"
 
         val markup = createReplyKeyboardMarkup(btnSaveTrip, btnChangeTrip)
 
@@ -231,15 +231,15 @@ class ClientMessageService
     private fun getLocation(update: Update): String {
         val location = update.message.location
         return if (location == null)
-            "pitak"
+            "питак"
         else
             "${location.longitude}, ${location.latitude}"
     }
 
     private fun denyTrip(update: Update): List<SendMessage> {
         val markup = createReplyKeyboardMarkup(btnStartNewTrip)
-        val replyText = "❌ O'zgarishlar bekor qilindi" +
-                "\n\n Yangi e'lon berish uchun pasdagi tugmani bosing \uD83D\uDC47"
+        val replyText = "❌ Узгаришлар бекор килинди" +
+                "\n\n Янги эълон бериш учун пастдаги тугмани босинг \uD83D\uDC47"
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -252,8 +252,8 @@ class ClientMessageService
 
         val replyTextClient =
                 generateTripAnnouncement(trip.id) +
-                "\n\uD83E\uDD1D Mos haydovchi toplishi bilan aloqaga chiqadi" +
-                "\n\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
+                "\n\uD83E\uDD1D Мос хайдовчи топилиши билан сизга хабар берамиз" +
+                "\n\n\uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
 
         val messageToClient = sendMessage(update, replyTextClient, createReplyKeyboardMarkup(btnMainMenu))
         val messageToForward = ForwardMessage(GROUP_ID_TAXI_BEKAT_TEST, getChatId(update), messageId-1)
@@ -271,7 +271,7 @@ class ClientMessageService
         val notifications = arrayListOf<BotApiMethod<Message>>()
 
         drivers.forEach {
-            val text = "Quyidagi mijoz haydovchi qidirmoqda. " +
+            val text = "Куйидаги мижоз хайдовчи кидирмокда: " +
                     "\n ${generateTripAnnouncement(trip.id)}"
 
             val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
@@ -291,7 +291,7 @@ class ClientMessageService
         fromRegionNames = regionRepository.findAll().map { "\uD83D\uDD34 ${it.nameLatin!!}"}
         val replyMarkup = createReplyKeyboardMarkup(fromRegionNames)
 
-        return listOf(sendMessage(update, "Qaysi viloyatdan", replyMarkup))
+        return listOf(sendMessage(update, "Кайси вилоятдан", replyMarkup))
     }
 
     private fun chooseFromSubRegion(update: Update): List<SendMessage> {
@@ -299,7 +299,7 @@ class ClientMessageService
         fromSubRegionNames = subRegionService.findAllByRegionNameLatin(regionName).map { "\uD83D\uDD34 ${it.nameLatin}" }
         val replyMarkup = createReplyKeyboardMarkup(fromSubRegionNames)
 
-        return listOf(sendMessage(update, "Qaysi shahar/tumandan", replyMarkup))
+        return listOf(sendMessage(update, "Кайси шахар/тумандан", replyMarkup))
     }
 
     private fun chooseToRegion(update: Update): List<SendMessage> {
@@ -309,7 +309,7 @@ class ClientMessageService
         toRegionNames = regionRepository.findAll().map { "\uD83D\uDD35 ${it.nameLatin!!}"}
         val replyMarkup = createReplyKeyboardMarkup(toRegionNames)
 
-        return listOf(sendMessage(update, "Qaysi viloyatga", replyMarkup))
+        return listOf(sendMessage(update, "Кайси вилоятга", replyMarkup))
     }
 
     private fun chooseToSubRegion(update: Update): List<SendMessage> {
@@ -317,7 +317,7 @@ class ClientMessageService
         toSubRegionNames = subRegionService.findAllByRegionNameLatin(regionName).map { "\uD83D\uDD35 ${it.nameLatin}" }
         val replyMarkup = createReplyKeyboardMarkup(toSubRegionNames)
 
-        return listOf(sendMessage(update, "Qaysi shahar/tumanga", replyMarkup))
+        return listOf(sendMessage(update, "Кайси шахар туманга", replyMarkup))
     }
 
     private fun acceptDriverRequest(update: Update): List<BotApiMethod<Message>> {
@@ -397,7 +397,7 @@ class ClientMessageService
         }
 
         val markup = createReplyKeyboardMarkup(taxiFrameRoutes)
-        return listOf(sendMessage(update, "\uD83D\uDDFA Qaysi yo'nalishda qatnaysiz", markup))
+        return listOf(sendMessage(update, "\uD83D\uDDFA Кайси йуналишда катнайсиз", markup))
     }
 
     private fun chooseFirstTaxiRoute(update: Update): List<BotApiMethod<Message>> {
@@ -406,8 +406,8 @@ class ClientMessageService
         taxiSubregionsToChooseFrom = subRegionService.findAllByRegionNameLatin(regionName).map { "\uD83D\uDFE2 ${it.nameLatin}" } as ArrayList<String>
 
         val markup = createReplyKeyboardMarkup(taxiSubregionsToChooseFrom)
-        val text = "O'zingiz qatnaydigan tuman/shaharni " +
-                "\n\n $taxiRoutesLimit ta tanlashingiz mumkin"
+        val text = "Узангиз катнайдиган шахар/туманни" +
+                "\n\n $taxiRoutesLimit та танлашингиз мумкин"
 
         return listOf(sendMessage(update, text, markup))
     }
@@ -423,8 +423,8 @@ class ClientMessageService
         taxiSubRegionNameSet.add(subRegionName)
 
         val markup = createReplyKeyboardMarkup(taxiSubregionsToChooseFrom)
-        val text = "O'zingiz qatnaydigan tuman/shaharni " +
-                "\n\n yana $taxiRoutesLimit ta tanlashingiz mumkin"
+        val text = "Узангиз катнайдиган шахар/туманни" +
+                "\n\n яна $taxiRoutesLimit та танлашингиз мумкин"
 
         return listOf(sendMessage(update, text, markup))
     }
@@ -432,7 +432,7 @@ class ClientMessageService
     private fun chooseTaxiCar(update: Update): List<BotApiMethod<Message>> {
         carNames = carRepository.findAll().map { it.nameLatin!! }
         val markup = createReplyKeyboardMarkup(carNames)
-        val replyText = "Moshinangiz rusumini tanlang"
+        val replyText = "Мошинангиз русумини танланг"
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -460,10 +460,10 @@ class ClientMessageService
         val destination = subRegionService.findMainSubRegion(destinationRegionName)
         routeService.updateDriverRoutes(subRegionList, destination, driver)
 
-        val replyText = "✅ Ma'lumotlar saqlandi. " +
-                "\n\uD83E\uDD1D Yo'nalishlaringizga mos yo'lovchi chiqsa, sizga darhol xabar beramiz. " +
-                "\n\uD83D\uDCDE Qo'shimcha ma'lumotlar uchun +998 99 3972636 ga murojat qilishingiz mumkin" +
-                "\n\uD83D\uDE4F @TaxiBekatBot dan foydalanganingiz uchun rahmat. Yo'lingzi bexatar bo'lsin"
+        val replyText = "✅ Маълумотлар сакланди. " +
+                "\n\uD83E\uDD1D Йуналишларингизга мос йуловчи чикса сизга дархол хаьар берамиз." +
+                "\n\uD83D\uDCDE Кушимча маълумот учун +998 99 3972636 га мурожат килишингиз мумкин." +
+                "\n\uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин!"
 
         val markup = createReplyKeyboardMarkup(btnMainMenu)
 
@@ -471,8 +471,8 @@ class ClientMessageService
     }
 
     private fun cancelDriverDetails(update: Update): List<SendMessage> {
-        val replyText = "❌ Ma'lumot saqlanmadi" +
-                "\n\n bosh menyuga qaytish uchun pasdagi tugmachani bosing \uD83D\uDC47"
+        val replyText = "❌ Маълумотлар сакланмади" +
+                "\n\n Бош сахифага кайтиш учун пастдаги тугмани босинг \uD83D\uDC47"
 
         val markup = createReplyKeyboardMarkup(btnStartNewTrip)
 
@@ -550,12 +550,12 @@ class ClientMessageService
 
     //GENERAL METHODS
     private fun generateTripAnnouncement(tripId: Long?): String =
-        "#️⃣$tripId raqamli e'lon" +
+        "#️⃣$tripId ракамли эълон" +
         "\n\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
         "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
         "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
-        "\n \uD83D\uDC65 Yo'lovchi soni: ${trip.ridersQuantity}" +
-        "\n \uD83D\uDCF1 Tel: ${formatPhoneNumber("${user.phone}")}" +
+        "\n \uD83D\uDC65 Йуловчилар сони: ${trip.ridersQuantity}" +
+        "\n \uD83D\uDCF1 Тел: ${formatPhoneNumber("${user.phone}")}" +
         "\n" +
         "\n #${trip.getTripStartPlace()?.substringBefore(" ")}${trip.getTripEndPlace()?.substringBefore(" ")}${trip.type}" +
         "\n"
@@ -586,31 +586,31 @@ class ClientMessageService
         //start
         val btnNeedTaxi = "${TripType.CLIENT.emoji} Мен йуловчиман"
         val btnNeedToSendPost = "${TripType.POST.emoji} Почта жунатмокчиман"
-        val btnIamTaxi = "${TripType.TAXI.emoji} Men haydovchiman"
-        const val btnMainMenu = "\uD83C\uDFE0 Bosh sahifaga qaytish"
+        val btnIamTaxi = "${TripType.TAXI.emoji} Мен хайдовчиман"
+        const val btnMainMenu = "\uD83C\uDFE0 Бош сахифага кайтиш"
 
         //client route
-        const val btnNewClientRoute = "➕ Boshqa yo'nalish"
+        const val btnNewClientRoute = "➕ Бошка йуналиш"
         //date
-        const val btnToday = "Bugun"
-        const val btnTomorrow = "Ertaga"
+        const val btnToday = "Бугун"
+        const val btnTomorrow = "Эртага"
         val datesToChoseFrom = listOf(btnToday, btnTomorrow)
-        const val btnFromPitak = "Pitakdan"
+        const val btnFromPitak = "Питакдан"
         //review announcement
-        const val btnSaveTrip = "✅ E'lonni joylash"
-        const val btnChangeTrip = "✏ E'lonni o'zgartirish"
+        const val btnSaveTrip = "✅ Эълонни жойлаш"
+        const val btnChangeTrip = "✏ Эълонни узгартириш"
         //deny trip
-        const val btnStartNewTrip = "Ya'ngi e'lon berish"
+        const val btnStartNewTrip = "Янги эълон бериш"
         //notify-client
-        const val btnAcceptDriverRequest = "✅ Haydovchini qabul qilish"
-        const val btnDenyDriverRequest = "❌ Haydovchini rad qilish"
+        const val btnAcceptDriverRequest = "✅ Хайдовчини кабул килиш"
+        const val btnDenyDriverRequest = "❌ Хайдовчини рад этиш"
 
         //notify-drivers
-        const val btnAcceptClientRequest = "✅ Qabul qilish"
-        const val btnDenyClientRequest = "❌ Rad qilish"
+        const val btnAcceptClientRequest = "✅ Кабул килиш"
+        const val btnDenyClientRequest = "❌ Рад этиш"
         //driver-details
-        const val btnSaveDriverDetails = "✅ Saqlash"
-        const val btnCancelDriverDetails = "❌ Bekor qilish"
+        const val btnSaveDriverDetails = "✅ Саклаш"
+        const val btnCancelDriverDetails = "❌ Бекор килиш"
 
         //channel links and names
         const val CHANNEL_ID_TAXI_BEKAT_TEST = "@taxi_bekat_test_chanel"
