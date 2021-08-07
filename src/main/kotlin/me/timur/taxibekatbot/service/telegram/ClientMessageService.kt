@@ -182,13 +182,13 @@ class ClientMessageService
         val dateInString = update.message.text
         trip.tripDate = if (dateInString == btnToday) LocalDate.now() else LocalDate.now().plusDays(1)
 
-        val button = KeyboardButton("\uD83D\uDCF1 Ракамни йубориш", true, false, null)
+        val button = KeyboardButton("\uD83D\uDCF1Ракамни юбориш", true, false, null)
 
         val keyboard = KeyboardRow().apply { add(button) }
         val markup = ReplyKeyboardMarkup(listOf(keyboard), true, true, false)
 
-        val replyText = "Телефон ракамингизни тулик коди билан киритинг " +
-                "\"\uD83D\uDCF1 Ракамни йубориш\" тугмасини босинг"
+        val replyText = "Телефон ракамингизни тулик коди билан киритинг ёки " +
+                "\"\uD83D\uDCF1Ракамни юбориш\" тугмасини босинг"
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -245,19 +245,21 @@ class ClientMessageService
     }
 
     private fun saveTrip(update: Update): List<BotApiMethod<Message>> {
-        val messageId = update.getMessageId()
         trip.telegramMessageId = update.getMessageId()
         trip.telegramUser = user
         tripService.save(trip)
 
         val replyTextClient =
-                generateTripAnnouncement(trip.id) +
-                "\n\uD83E\uDD1D Мос хайдовчи топилиши билан сизга хабар берамиз" +
+                "#️⃣${trip.id} ракамли эълонингиз жойланди" +
+                "\n\n\uD83E\uDD1D Мос хайдовчи топилиши билан сизга хабар берамиз" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
-
         val messageToClient = sendMessage(update, replyTextClient, createReplyKeyboardMarkup(btnMainMenu))
-        val messageToForward = ForwardMessage(GROUP_ID_TAXI_BEKAT_TEST, getChatId(update), messageId-1)
-        val messages = arrayListOf(messageToClient, messageToForward)
+
+        val forwardTextGroup = generateTripAnnouncement(trip.id) +
+                "\nЭълон бериш учун ёки йуловчи кидириш учун куйидаги ботдан фойдаланинг @$botName"
+
+        val messageToForward = sendMessage(GROUP_ID_TAXI_BEKAT_TEST, forwardTextGroup)
+        val messages: ArrayList<BotApiMethod<Message>> = arrayListOf(messageToClient, messageToForward)
 
         val notificationForDrivers = notifyMatchingDrivers(trip)
         messages.addAll(notificationForDrivers)
@@ -332,9 +334,10 @@ class ClientMessageService
 
         val acceptedDriverMessage = sendDriverAcceptanceNotification(driver, tripId)
 
+        val deleteClientPrevMessage = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
         val clientMessage = generateAfterTripCloseMessage(trip, driver)
 
-        return arrayListOf<BotApiMethod<Message>>(clientMessage, acceptedDriverMessage)
+        return arrayListOf<BotApiMethod<Message>>(clientMessage, deleteClientPrevMessage, acceptedDriverMessage)
             .apply { addAll(deniedDriversMessages) }
     }
 
@@ -353,7 +356,7 @@ class ClientMessageService
             "Сиз #️⃣${trip.id} ракамли саёхатингизни амалга ошириш учун \uD83C\uDD94 ${driver.id} ракамли хайдовчини танладингиз" +
                     "\n\n \uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
 
-        return sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
+        return sendMessage(trip.telegramUser!!.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
     }
 
     private fun sendDriverAcceptanceNotification(driver: Driver, tripId: Long): SendMessage {
@@ -501,17 +504,18 @@ class ClientMessageService
     }
 
     private fun sendDriverAcceptanceAwaitNotification(update: Update): SendMessage {
-        val replyText = update.callbackQuery.message.text.substringAfter("Quyidagi mijoz haydovchi qidirmoqda.") +
-                "\n\n✅ Siz e'lonni qabul qildingiz va javobingiz mijozga yuborildi" +
-                "\n\n\uD83E\uDD1D Mijoz sizni tanlasa, sizga xabar beramiz" +
-                "\n\n\uD83D\uDE4F Kuningiz yaxshi o'tsin"
+        val replyText = update.callbackQuery.message.text.substringAfter(btnAcceptClientRequest) +
+                "\n\n✅ Эълонни кабул килганлигингиз хакида мижозга хабар юборилди" +
+                "\n\n\uD83E\uDD1D Мижоз сизни танласа сизга хабар берамиз" +
+                "\n\n\uD83D\uDE4F Кунингиз хайирли утсин"
         val markup = createReplyKeyboardMarkup(btnMainMenu)
         return sendMessage(update, replyText, markup)
     }
 
     private fun notifyClient(driver: Driver, trip: Trip): SendMessage {
-        val replyText = "\uD83C\uDD94 ${driver.id} ракамли хайдовчи #️⃣${trip.id} ракамли саёхатингизни амалга оширишга" +
-                "\n \uD83D\uDE99 $driver."
+        val replyText = "\uD83C\uDD94 ${driver.id} ракамли хайдовчи #️⃣${trip.id} ракамли саёхатингизни амалга оширишга тайёр" +
+                "\n \uD83D\uDE99 ${driver.car.nameLatin}" +
+                "\n \uD83D\uDCDE ${driver.telegramUser.phone}"
 
         val markup = InlineKeyboardMarkup().apply { this.keyboard = listOf(listOf(
             InlineKeyboardButton(btnAcceptDriverRequest).apply { this.callbackData = btnAcceptDriverRequest + driver.id + "trip" + trip.id },
@@ -538,7 +542,12 @@ class ClientMessageService
     }
 
     private fun generateTripCandidacy(update: Update, status: TripCandidacyStatus = TripCandidacyStatus.ACCEPTED_BY_DRIVER): TripCandidacy {
-        val tripId = update.callbackQuery.data.substringAfter(btnDenyClientRequest).toLong()
+        val stringAfter = if (status == TripCandidacyStatus.ACCEPTED_BY_DRIVER)
+            btnAcceptClientRequest
+        else
+            btnDenyClientRequest
+
+        val tripId = update.callbackQuery.data.substringAfter(stringAfter).toLong()
         val theTrip = tripService.findById(tripId)
         val theDriver = driverService.findDriverByTelegramUser(update.callbackQuery.from.id)
         val messageId = update.callbackQuery.message.messageId
@@ -549,16 +558,21 @@ class ClientMessageService
     }
 
     //GENERAL METHODS
-    private fun generateTripAnnouncement(tripId: Long?): String =
-        "#️⃣$tripId ракамли эълон" +
-        "\n\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
-        "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
-        "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
-        "\n \uD83D\uDC65 Йуловчилар сони: ${trip.ridersQuantity}" +
-        "\n \uD83D\uDCF1 Тел: ${formatPhoneNumber("${user.phone}")}" +
-        "\n" +
-        "\n #${trip.getTripStartPlace()?.substringBefore(" ")}${trip.getTripEndPlace()?.substringBefore(" ")}${trip.type}" +
-        "\n"
+    private fun generateTripAnnouncement(tripId: Long?): String {
+        var announcementMessage = if(tripId != null) "#️⃣$tripId ракамли эълон" else ""
+
+        announcementMessage += "\n\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
+                "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
+                "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
+                "\n \uD83D\uDC65 Йуловчилар сони: ${trip.ridersQuantity}" +
+                "\n \uD83D\uDCF1 Тел: ${formatPhoneNumber("${user.phone}")}" +
+                "\n" +
+                "\n #${trip.getTripStartPlace()?.substringBefore(" ")}${trip.getTripEndPlace()?.substringBefore(" ")}${trip.type}" +
+                "\n"
+
+        return announcementMessage
+    }
+
 
     private fun clearVariables() {
         user = TelegramUser()
