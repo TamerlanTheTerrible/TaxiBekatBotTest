@@ -37,7 +37,7 @@ class RouteService
 
     private fun deletePreviousRoutesOfDriver(driver: Driver) {
         val previousRoutes = routeRepo.findAllByDriver(driver)
-        if (previousRoutes.isNullOrEmpty()){
+        if (!previousRoutes.isNullOrEmpty()){
             previousRoutes.forEach { it.deleted = true }
             routeRepo.saveAll(previousRoutes)
         }

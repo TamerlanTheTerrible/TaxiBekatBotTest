@@ -16,7 +16,6 @@ import me.timur.taxibekatbot.util.KeyboardUtils.createKeyboardRow
 import me.timur.taxibekatbot.util.KeyboardUtils.createReplyKeyboardMarkup
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
-import me.timur.taxibekatbot.util.UpdateUtil.getChatId
 import me.timur.taxibekatbot.util.UpdateUtil.sendMessage
 import me.timur.taxibekatbot.util.getMessageId
 import me.timur.taxibekatbot.util.getStringAfter
@@ -26,7 +25,6 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
-import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Message
@@ -395,8 +393,7 @@ class ClientMessageService
         frameRoutes.forEach {
             val home = it.home!!.nameLatin
             val destination = it.destination!!.nameLatin
-            val route = "$home-$destination-$home"
-            taxiFrameRoutes.add(route)
+            taxiFrameRoutes.add("$home-$destination")
         }
 
         val markup = createReplyKeyboardMarkup(taxiFrameRoutes)
@@ -405,28 +402,27 @@ class ClientMessageService
 
     private fun chooseFirstTaxiRoute(update: Update): List<BotApiMethod<Message>> {
         taxiFrameRoute = update.message.text
-        val regionName = taxiFrameRoute.substringAfterLast("-")
+        val regionName = taxiFrameRoute.substringBefore("-")
         taxiSubregionsToChooseFrom = subRegionService.findAllByRegionNameLatin(regionName).map { "\uD83D\uDFE2 ${it.nameLatin}" } as ArrayList<String>
 
         val markup = createReplyKeyboardMarkup(taxiSubregionsToChooseFrom)
-        val text = "Узангиз катнайдиган шахар/туманни" +
+        val text = "Узингиз катнайдиган шахар/туманни" +
                 "\n\n $taxiRoutesLimit та танлашингиз мумкин"
 
         return listOf(sendMessage(update, text, markup))
     }
 
     private fun chooseOtherTaxiRoutes(update: Update): List<BotApiMethod<Message>> {
-        taxiRoutesLimit--
-        if (taxiRoutesLimit == 0)
+        val subRegionName = update.getStringAfter("\uD83D\uDFE2 ")
+        taxiSubRegionNameSet.add(subRegionName)
+
+        if (--taxiRoutesLimit == 0)
             return chooseTaxiCar(update)
 
         taxiSubregionsToChooseFrom.remove(update.message.text)
 
-        val subRegionName = update.getStringAfter("\uD83D\uDFE2 ")
-        taxiSubRegionNameSet.add(subRegionName)
-
         val markup = createReplyKeyboardMarkup(taxiSubregionsToChooseFrom)
-        val text = "Узангиз катнайдиган шахар/туманни" +
+        val text = "Узингиз катнайдиган шахар/туманни" +
                 "\n\n яна $taxiRoutesLimit та танлашингиз мумкин"
 
         return listOf(sendMessage(update, text, markup))
@@ -443,10 +439,10 @@ class ClientMessageService
     private fun previewDriverData(update: Update): List<BotApiMethod<Message>> {
         carName = update.message.text
 
-        val replyText = "Agar ma'lumotlar to'g'ri bo'lsa saqlash tugmasini bosing:" +
-                "\n\n\uD83D\uDEE3 Asosiy marshrut: $taxiFrameRoute" +
-                "\n\n\uD83C\uDF07 Siz qatnaydigan tuman/shaharlar: ${taxiSubRegionNameSet.toString().substringAfter("[").substringBefore("]")}" +
-                "\n\n\uD83D\uDE98 Moshinangiz rusumi: $carName"
+        val replyText = "Агар маълумотлар тугри булса саклаш тугмасини босинг:" +
+                "\n\n\uD83D\uDEE3 Асосий маршрут: $taxiFrameRoute" +
+                "\n\n\uD83C\uDF07 Сиз катнайдиган шахар/туманлар: ${taxiSubRegionNameSet.toString().substringAfter("[").substringBefore("]")}" +
+                "\n\n\uD83D\uDE98 Мошинангиз русуми: $carName"
 
         val replyMarkup = createReplyKeyboardMarkup(btnSaveDriverDetails, btnCancelDriverDetails)
 
