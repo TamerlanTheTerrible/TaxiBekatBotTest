@@ -332,11 +332,26 @@ class ClientMessageService
 
         val acceptedDriverMessage = sendDriverAcceptanceNotification(driver, tripId)
 
-        val deleteClientPrevMessage = DeleteMessage(update.callbackQuery.message.chatId.toString(), update.callbackQuery.message.messageId) as BotApiMethod<Message>
+        val msgListToDelete = deleteNotifications(update, deniedDriversMessages)
         val clientMessage = generateAfterTripCloseMessage(trip, driver)
 
-        return arrayListOf<BotApiMethod<Message>>(clientMessage, deleteClientPrevMessage, acceptedDriverMessage)
-            .apply { addAll(deniedDriversMessages) }
+        return arrayListOf<BotApiMethod<Message>>(clientMessage, acceptedDriverMessage)
+            .apply { addAll(deniedDriversMessages) }.apply { addAll(msgListToDelete) }
+    }
+//    TODO("Remove deleteNotifications logic, instead unable accept another driver, if trip is closed")
+    private fun deleteNotifications(update: Update, deniedDriversMessages: List<BotApiMethod<Message>>): List<BotApiMethod<Message>> {
+        val chatId = update.callbackQuery.message.chatId.toString()
+        val messageId = update.callbackQuery.message.messageId
+        var messagesAmount = deniedDriversMessages.size
+        val messagesToDelete = arrayListOf<BotApiMethod<Message>>()
+
+        while (messagesAmount > -1) {
+            val messageToDelete = DeleteMessage(chatId, messageId-messagesAmount) as BotApiMethod<Message>
+            messagesToDelete.add(messageToDelete)
+            messagesAmount--
+        }
+
+        return messagesToDelete
     }
 
     private fun notifyDeniedDrivers(deniedCandidacies: ArrayList<TripCandidacy>): List<BotApiMethod<Message>> {
@@ -375,7 +390,7 @@ class ClientMessageService
     }
 
     private fun notifyDeniedDrivers(driver: Driver, trip: Trip): List<BotApiMethod<Message>> {
-        val replyText = "Афсуски #️⃣${trip.id} ракамли саёхат бошка хайдовчи томонидан амалга ошириш учун" +
+        val replyText = "Афсуски #️⃣${trip.id} ракамли саёхатни амалга ошириш учун йуловчи бошка хайдовчини танлади" +
                 "\n\n Яна мос эълонлар берилиши билан сизга хабар берамиз"
 
         val notification = sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
@@ -500,8 +515,7 @@ class ClientMessageService
     }
 
     private fun sendDriverAcceptanceAwaitNotification(update: Update): SendMessage {
-        val replyText = update.callbackQuery.message.text.substringAfter("Куйидаги мижоз хайдовчи кидирмокда:") +
-                "ни кабул килдингиз"
+        val replyText = update.callbackQuery.message.text.substringAfter("Куйидаги мижоз хайдовчи кидирмокда: ") +
                 "\n\n✅ Эълонни кабул килганлигингиз хакида мижозга хабар юборилди" +
                 "\n\n\uD83E\uDD1D Мижоз сизни танласа сизга хабар берамиз" +
                 "\n\n\uD83D\uDE4F Кунингиз хайирли утсин"
