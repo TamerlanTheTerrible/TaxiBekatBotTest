@@ -380,9 +380,9 @@ class ClientMessageService
 
         val notification = sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
 
-        val tripCandidacy = tripService.findTripCandidacyByDriver(trip, driver)
-        val deleteMessage = DeleteMessage(driver.telegramUser.chatId!!, tripCandidacy.messageId) as BotApiMethod<Message>
-        return listOf(deleteMessage, notification)
+//        val tripCandidacy = tripService.findTripCandidacyByDriver(trip, driver)
+//        val deleteMessage = DeleteMessage(driver.telegramUser.chatId!!, tripCandidacy.messageId) as BotApiMethod<Message>
+        return listOf(notification)
     }
 
 
@@ -500,7 +500,8 @@ class ClientMessageService
     }
 
     private fun sendDriverAcceptanceAwaitNotification(update: Update): SendMessage {
-        val replyText = update.callbackQuery.message.text.substringAfter(btnAcceptClientRequest) +
+        val replyText = update.callbackQuery.message.text.substringAfter("Куйидаги мижоз хайдовчи кидирмокда:") +
+                "ни кабул килдингиз"
                 "\n\n✅ Эълонни кабул килганлигингиз хакида мижозга хабар юборилди" +
                 "\n\n\uD83E\uDD1D Мижоз сизни танласа сизга хабар берамиз" +
                 "\n\n\uD83D\uDE4F Кунингиз хайирли утсин"

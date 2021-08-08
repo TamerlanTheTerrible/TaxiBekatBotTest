@@ -54,9 +54,10 @@ class TripService
         tripCandidates.forEach {
             if (it.driver.id == driver.id)
                 it.status = TripCandidacyStatus.ACCEPTED_BY_CLIENT
-
-            it.status = TripCandidacyStatus.DENIED_BY_CLIENT
-            deniedCandidates.add(it)
+            else{
+                it.status = TripCandidacyStatus.DENIED_BY_CLIENT
+                deniedCandidates.add(it)
+            }
         }
         return deniedCandidates
     }
