@@ -1,6 +1,7 @@
 package me.timur.taxibekatbot.service.telegram
 
 import ch.qos.logback.classic.Logger
+import me.timur.taxibekatbot.exception.CustomException
 import me.timur.taxibekatbot.exception.InvalidInputException
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.BeanFactory
@@ -39,7 +40,7 @@ class Bot: TelegramLongPollingBot(){
                 execute(message)
 
         }
-        catch (e: InvalidInputException){
+        catch (e: CustomException){
             execute(SendMessage(chatId, e.message ?: "Kutilmagn xatolik"))
         }
         catch (e: Exception) {

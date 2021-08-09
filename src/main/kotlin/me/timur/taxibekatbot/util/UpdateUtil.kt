@@ -1,6 +1,9 @@
 package me.timur.taxibekatbot.util
 
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
+import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard
 
@@ -13,6 +16,13 @@ object UpdateUtil {
 
     fun sendMessage(chatId: String, replyText: String, markup: ReplyKeyboard? = null): SendMessage =
             SendMessage(chatId, replyText).apply { this.replyMarkup = markup }
+
+    fun deleteMessage(update: Update): BotApiMethod<Message> {
+        val chatId = update.callbackQuery.message.chatId.toString()
+        val messageId = update.callbackQuery.message.messageId
+
+        return DeleteMessage(chatId, messageId) as BotApiMethod<Message>
+    }
 
     fun getChatId(update: Update) =
             if (update.hasMessage()) update.message.chatId.toString() else update.callbackQuery.message.chatId.toString()

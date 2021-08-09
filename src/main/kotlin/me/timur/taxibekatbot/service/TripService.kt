@@ -8,6 +8,7 @@ import me.timur.taxibekatbot.enum.TripCandidacyStatus
 import me.timur.taxibekatbot.enum.TripStatus
 import me.timur.taxibekatbot.enum.TripType
 import me.timur.taxibekatbot.exception.DataNotFoundException
+import me.timur.taxibekatbot.exception.TripClosedException
 import me.timur.taxibekatbot.repository.TripCandidacyRepository
 import me.timur.taxibekatbot.repository.TripRepository
 import org.springframework.beans.factory.annotation.Autowired
@@ -40,12 +41,19 @@ class TripService
         throw DataNotFoundException("Could not find TripCandidacy by trip ${trip.id} and driver ${driver.id}")
     }
 
-    fun closeTripAndReturnDeniedCandidacies(trip: Trip, driver: Driver): ArrayList<TripCandidacy> {
+    fun closeTripAndReturnDeniedCandidacies(trip: Trip, driver: Driver): ArrayList<TripCandidacy>? {
+        if (trip.status == TripStatus.ACTIVE)
+            closeTrip(trip, driver)
+        else
+            return null
+
+        return denyAndReturnOtherTripCandidacies(trip, driver)
+    }
+
+    private fun closeTrip(trip: Trip, driver: Driver) {
         trip.status = TripStatus.NOT_ACTIVE
         trip.driver = driver
         save(trip)
-
-        return denyAndReturnOtherTripCandidacies(trip, driver)
     }
 
     private fun denyAndReturnOtherTripCandidacies(trip: Trip, driver: Driver): ArrayList<TripCandidacy> {

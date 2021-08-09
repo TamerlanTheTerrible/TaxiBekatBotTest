@@ -16,6 +16,7 @@ import me.timur.taxibekatbot.util.KeyboardUtils.createKeyboardRow
 import me.timur.taxibekatbot.util.KeyboardUtils.createReplyKeyboardMarkup
 import me.timur.taxibekatbot.util.PhoneUtil.containsPhone
 import me.timur.taxibekatbot.util.PhoneUtil.formatPhoneNumber
+import me.timur.taxibekatbot.util.UpdateUtil.deleteMessage
 import me.timur.taxibekatbot.util.UpdateUtil.sendMessage
 import me.timur.taxibekatbot.util.getMessageId
 import me.timur.taxibekatbot.util.getStringAfter
@@ -328,30 +329,26 @@ class ClientMessageService
         val driver = driverService.findById(driverId)
 
         val deniedCandidacies = tripService.closeTripAndReturnDeniedCandidacies(trip, driver)
+            ?: return notifyClientAboutAlreadyClosedTrip(update)
+
         val deniedDriversMessages = notifyDeniedDrivers(deniedCandidacies)
 
         val acceptedDriverMessage = sendDriverAcceptanceNotification(driver, tripId)
 
-        val msgListToDelete = deleteNotifications(update, deniedDriversMessages)
         val clientMessage = generateAfterTripCloseMessage(trip, driver)
 
-        return arrayListOf<BotApiMethod<Message>>(clientMessage, acceptedDriverMessage)
-            .apply { addAll(deniedDriversMessages) }.apply { addAll(msgListToDelete) }
+        val msgToDelete = deleteMessage(update)
+
+        return arrayListOf<BotApiMethod<Message>>(msgToDelete, clientMessage, acceptedDriverMessage)
+            .apply { addAll(deniedDriversMessages) }
     }
-//    TODO("Remove deleteNotifications logic, instead unable accept another driver, if trip is closed")
-    private fun deleteNotifications(update: Update, deniedDriversMessages: List<BotApiMethod<Message>>): List<BotApiMethod<Message>> {
-        val chatId = update.callbackQuery.message.chatId.toString()
-        val messageId = update.callbackQuery.message.messageId
-        var messagesAmount = deniedDriversMessages.size
-        val messagesToDelete = arrayListOf<BotApiMethod<Message>>()
 
-        while (messagesAmount > -1) {
-            val messageToDelete = DeleteMessage(chatId, messageId-messagesAmount) as BotApiMethod<Message>
-            messagesToDelete.add(messageToDelete)
-            messagesAmount--
-        }
+    private fun notifyClientAboutAlreadyClosedTrip(update: Update): List<BotApiMethod<Message>> {
+        val msgToDelete = deleteMessage(update)
 
-        return messagesToDelete
+        val tripId = update.callbackQuery.data.substringAfter("trip").toLong()
+
+        return listOf(msgToDelete, sendMessage(update, "Саёхат $tripId га хайдовчи танлаб булинган"))
     }
 
     private fun notifyDeniedDrivers(deniedCandidacies: ArrayList<TripCandidacy>): List<BotApiMethod<Message>> {
@@ -383,6 +380,9 @@ class ClientMessageService
         val tripId = update.callbackQuery.data.substringAfter("trip").toLong()
         val trip = tripService.findById(tripId)
 
+        if (trip.status != TripStatus.ACTIVE)
+            return listOf(deleteMessage(update))
+
         val driverId = update.callbackQuery.data.substringAfter(btnDenyDriverRequest).substringBefore("trip").toLong()
         val driver = driverService.findById(driverId)
 
@@ -395,8 +395,6 @@ class ClientMessageService
 
         val notification = sendMessage(driver.telegramUser.chatId!!, replyText, createReplyKeyboardMarkup(btnMainMenu))
 
-//        val tripCandidacy = tripService.findTripCandidacyByDriver(trip, driver)
-//        val deleteMessage = DeleteMessage(driver.telegramUser.chatId!!, tripCandidacy.messageId) as BotApiMethod<Message>
         return listOf(notification)
     }
 
@@ -501,7 +499,7 @@ class ClientMessageService
 
         val messageForDriver = sendDriverAcceptanceAwaitNotification(update)
         val messageForClient = notifyClient(candidacy.driver, candidacy.trip)
-        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), candidacy.messageId) as BotApiMethod<Message>
+        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), candidacy.driverMessageId) as BotApiMethod<Message>
 
         return listOf(messageForClient, deleteMsg, messageForDriver)
     }
@@ -547,7 +545,7 @@ class ClientMessageService
         val markup = createReplyKeyboardMarkup(btnMainMenu)
         val messageForDriver = sendMessage(update, replyText, markup)
 
-        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), tripCandidacy.messageId) as BotApiMethod<Message>
+        val deleteMsg = DeleteMessage(update.callbackQuery.message.chatId.toString(), tripCandidacy.driverMessageId) as BotApiMethod<Message>
 
         return listOf(deleteMsg, messageForDriver)
     }
