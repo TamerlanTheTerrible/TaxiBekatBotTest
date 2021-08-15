@@ -505,9 +505,9 @@ class ClientMessageService
 
         val keyboard = createKeyboard(taxiSubregionsToChooseFrom, false)
         keyboard.add(KeyboardRow().apply { addAll(listOf(btnEnoughRoutes, btnMainMenu)) })
-        val markup = createReplyKeyboardMarkup(taxiSubregionsToChooseFrom)
-        val text = "Узингиз катнайдиган шахар/туманни" +
-                "\n\n яна $taxiRoutesLimit та танлашингиз мумкин"
+        val markup = ReplyKeyboardMarkup(keyboard)
+        val text = "Узингиз катнайдиган шахар/туманни яна $taxiRoutesLimit та танлашингиз мумкин" +
+                "\n\n бошка танлашни истмасангиз \"$btnEnoughRoutes\" тугмасини босинг"
 
         return listOf(sendMessage(update, text, markup))
     }
@@ -674,7 +674,7 @@ class ClientMessageService
         taxiFrameRoutes = arrayListOf()
         taxiSubregionsToChooseFrom = arrayListOf()
         taxiSubRegionNameSet = arrayListOf()
-        taxiRoutesLimit = 2
+        taxiRoutesLimit = 6
         carNames = arrayListOf()
         carName = ""
     }
