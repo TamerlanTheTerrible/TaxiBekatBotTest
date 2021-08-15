@@ -124,8 +124,9 @@ class ClientMessageService
         clearVariables()
         user = telegramUserService.saveUser(update)
 
-        val markup = createReplyKeyboardMarkup(btnNeedTaxi, btnNeedToSendPost, btnIamTaxi)
-        val responseText = "Ассалому алайкум. Нима кидираяпсиз?"
+        val markup = createReplyKeyboardMarkup(btnNeedTaxi, btnIamTaxi, btnNeedToSendPost)
+        val responseText = "Ассалому алайкум. TaxiBekat га хуш келибсиз." +
+                "\n\n Сиз бу ерда йуловчи, хайдовчи кидириш ва почта юбориш хизматидан фойдаланишингиз мумкин"
         return listOf(sendMessage(update, responseText, markup))
     }
 
