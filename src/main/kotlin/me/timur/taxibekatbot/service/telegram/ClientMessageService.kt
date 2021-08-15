@@ -71,7 +71,7 @@ class ClientMessageService
     private var taxiFrameRoutes = arrayListOf<String>()
     private var taxiSubregionsToChooseFrom = arrayListOf<String>()
     private var taxiSubRegionNameSet = arrayListOf<String>()
-    private var taxiRoutesLimit = 2
+    private var taxiRoutesLimit = 6
     private var carNames = arrayListOf<String>()
     private var carName: String = ""
 
@@ -107,6 +107,7 @@ class ClientMessageService
                 update.message.text == btnIamTaxi -> chooseTaxiFrameRoute(update)
                 taxiFrameRoutes.any { it == update.message.text } -> chooseFirstTaxiRoute(update)
                 taxiSubregionsToChooseFrom.any{ it == update.message.text } -> chooseOtherTaxiRoutes(update)
+                update.message.text == btnEnoughRoutes -> chooseTaxiCar(update)
                 carNames.any { it == update.message.text } && isDriver -> previewDriverData(update)
                 update.message.text == btnSaveDriverDetails -> saveDriverDetails(update)
                 update.message.text == btnCancelDriverDetails -> cancelDriverDetails(update)
@@ -502,6 +503,8 @@ class ClientMessageService
 
         taxiSubregionsToChooseFrom.remove(update.message.text)
 
+        val keyboard = createKeyboard(taxiSubregionsToChooseFrom, false)
+        keyboard.add(KeyboardRow().apply { addAll(listOf(btnEnoughRoutes, btnMainMenu)) })
         val markup = createReplyKeyboardMarkup(taxiSubregionsToChooseFrom)
         val text = "Узингиз катнайдиган шахар/туманни" +
                 "\n\n яна $taxiRoutesLimit та танлашингиз мумкин"
@@ -696,6 +699,8 @@ class ClientMessageService
         const val btnTomorrow = "Эртага"
         val datesToChoseFrom = listOf(btnToday, btnTomorrow)
         const val btnFromPitak = "Питакдан"
+        //route choosing
+        const val btnEnoughRoutes = "Етарли"
         //review announcement
         const val btnSaveTrip = "✅ Хайдовчи кидириш"
         const val btnChangeTrip = "✏ Эълонни узгартириш"
