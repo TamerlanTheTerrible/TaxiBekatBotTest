@@ -54,8 +54,8 @@ class Trip() {
     @JoinColumn(name = "confirmed_driver")
     var driver: Driver? = null
 
-    @Column(name = "meet_place")
-    var meetPlace: String = "pitak"
+    @Column(name = "pickup_point")
+    var pickupPoint: String = "питак"
 
 
     constructor(
@@ -86,5 +86,12 @@ class Trip() {
     fun getTripMonth(): Month? = tripDate?.month
     @Transient
     fun getTripYear(): Int? = tripDate?.year
+    @Transient
+    fun getPickupPlace(): String {
+        return if (pickupPoint == "питак")
+            ": питак"
+        else
+            "/manzili"
+    }
 
 }

@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
+import org.telegram.telegrambots.meta.api.methods.send.SendLocation
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.Message
@@ -56,6 +57,7 @@ class ClientMessageService
     private var trip = Trip()
     private var driver = Driver()
     private var isDriver = false
+    private var locationRequested = false
 
     private var clientRoutesCached = emptyList<String>()
     private var fromRegionNames = emptyList<String>()
@@ -79,6 +81,7 @@ class ClientMessageService
             update.hasMessage() -> when {
                 //general
                 update.message.text == "/start" -> commandStart(update)
+                update.message.text == "/manzili" -> sendClientLocation(update)
                 update.message.text == btnMainMenu -> commandStart(update)
                 //client
                 update.message.text == btnNeedTaxi -> chooseClientRoute(update)
@@ -96,7 +99,8 @@ class ClientMessageService
                 carNames.any { it == update.message.text } && !isDriver -> chooseOtherClientPreferredCars(update)
                 update.message.text == btnAllCarsForClient -> chooseAllCarsAndTripDate(update)
                 update.message.text == btnEnoughCars -> chooseDate(update)
-                ridersQuantityList.any { it == update.message.text } -> reviewTrip(update)
+                ridersQuantityList.any { it == update.message.text } -> requestLocation(update)
+                locationRequested -> reviewTrip(update)
 
                 //taxi
                 update.message.text == btnIamTaxi -> chooseTaxiFrameRoute(update)
@@ -122,6 +126,14 @@ class ClientMessageService
         }
 
         return messages
+    }
+
+    private fun sendClientLocation(update: Update): List<BotApiMethod<Message>> {
+        val location = SendLocation(
+            update.message.chatId.toString(),
+            trip.pickupPoint.substringBefore(",").toDouble(),
+            trip.pickupPoint.substringAfter(",").toDouble(),)
+        return listOf(location)
     }
 
     //CLIENT
@@ -245,12 +257,16 @@ class ClientMessageService
     }
 
     private fun requestLocation(update: Update): List<BotApiMethod<Message>> {
-        trip.ridersQuantity = update.message.text.toInt()
+        if (trip.type == TripType.CLIENT)
+            trip.ridersQuantity = update.message.text.toInt()
 
-        val replyText = "Хайдовчи сизни каердан олиб кетишини хохлайсиз?"
+        locationRequested = true
+
+        val replyText = "Хайдовчи сизни турган жойингиздан олиб кетишини хохласангиз \"\uD83D\uDCCD Локацияни улашиш\" тугмасини босинг" +
+                "\n\n Акс холд \"Питакга узим бораман\" тугмасини босинг"
 
         val buttonPitakdan = KeyboardButton(btnFromPitak)
-        val buttonLocation = KeyboardButton("\uD83D\uDCCD Хозирги турган жойимдан", false, true, null)
+        val buttonLocation = KeyboardButton("\uD83D\uDCCD Локацияни улашиш", false, true, null)
 
         val keyboard = KeyboardRow().apply { add(buttonPitakdan) }.apply { add(buttonLocation) }
         val markup = ReplyKeyboardMarkup(listOf(keyboard), true, true, false)
@@ -259,8 +275,9 @@ class ClientMessageService
     }
 
     private fun reviewTrip(update: Update): List<SendMessage> {
-        if (trip.type == TripType.CLIENT)
-            trip.ridersQuantity = update.message.text.toInt()
+        locationRequested = false
+
+        trip.pickupPoint = getLocation(update)
 
         val replyText = generateTripAnnouncement(trip.id) +
                 "\nЭълон бериш учун ёки йуловчи кидириш учун куйидаги ботдан фойдаланинг @$botName"
@@ -275,7 +292,7 @@ class ClientMessageService
         return if (location == null)
             "питак"
         else
-            "${location.longitude}, ${location.latitude}"
+            "${location.latitude}, ${location.longitude}"
     }
 
     private fun denyTrip(update: Update): List<SendMessage> {
@@ -619,6 +636,7 @@ class ClientMessageService
                 "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
                 "\n \uD83D\uDE99 ${trip.preferredCars}" +
                 "\n \uD83D\uDC65 Йуловчилар сони: ${trip.ridersQuantity}" +
+                "\n \uD83D\uDCCD Йуловчини олиб кетиш ${trip.getPickupPlace()}" +
                 "\n \uD83D\uDCF1 Тел: ${formatPhoneNumber("${user.phone}")}" +
                 "\n" +
                 "\n #${trip.getTripStartPlace()?.replace("'", "")?.substringBefore(" ")}" +
