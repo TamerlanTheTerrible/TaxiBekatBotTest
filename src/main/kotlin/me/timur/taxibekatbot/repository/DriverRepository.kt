@@ -16,9 +16,11 @@ interface DriverRepository: JpaRepository<Driver, Long> {
         value = "SELECT d.*\n" +
                 "FROM driver d \n" +
                 "JOIN route r ON r.driver = d.id \n" +
+                "JOIN car c ON c.id = d.car_id \n" +
                 "WHERE d.status IN ('ACTIVE', 'FREE_PERIODED')\n" +
                 "AND r.deleted = FALSE \n" +
-                "AND ((r.home = :fromSubregionId AND r.destination = :toSubregionId) OR (r.home = :toSubregionId AND r.destination = :fromSubregionId))"
+                "AND ((r.home = :fromSubregionId AND r.destination = :toSubregionId) OR (r.home = :toSubregionId AND r.destination = :fromSubregionId))" +
+                "AND :preferredCars like CONCAT('%', c.name_latin, '%')"
     )
-    fun findAllByMatchingRoute(fromSubregionId: Long, toSubregionId: Long): List<Driver>
+    fun findAllByMatchingRoute(fromSubregionId: Long, toSubregionId: Long, preferredCars: String): List<Driver>
 }

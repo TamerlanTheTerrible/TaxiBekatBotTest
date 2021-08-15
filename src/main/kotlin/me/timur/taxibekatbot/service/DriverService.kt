@@ -36,7 +36,8 @@ class DriverService
     fun findAllByMatchingRoute(trip: Trip): List<Driver> {
         return driverRepository.findAllByMatchingRoute(
             trip.from!!.id!!,
-            trip.to!!.id!!
+            trip.to!!.id!!,
+            trip.preferredCars!!
         )
     }
 
