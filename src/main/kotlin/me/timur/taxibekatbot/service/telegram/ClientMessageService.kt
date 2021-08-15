@@ -621,7 +621,8 @@ class ClientMessageService
                 "\n \uD83D\uDC65 Йуловчилар сони: ${trip.ridersQuantity}" +
                 "\n \uD83D\uDCF1 Тел: ${formatPhoneNumber("${user.phone}")}" +
                 "\n" +
-                "\n #${trip.getTripStartPlace()?.substringBefore(" ")}${trip.getTripEndPlace()?.substringBefore(" ")}${trip.type}" +
+                "\n #${trip.getTripStartPlace()?.replace("'", "")?.substringBefore(" ")}" +
+                "${trip.getTripEndPlace()?.replace("'", "")?.substringBefore(" ")}${trip.type}" +
                 "\n"
 
         return announcementMessage
