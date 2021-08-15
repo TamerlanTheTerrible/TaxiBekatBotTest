@@ -81,13 +81,14 @@ class ClientMessageService
             update.hasMessage() -> when {
                 //general
                 update.message.text == "/start" -> commandStart(update)
-                update.message.text == "/manzili" -> sendClientLocation(update)
                 update.message.text == btnMainMenu -> commandStart(update)
                 //client
+                update.message.text == "/manzili" -> sendClientLocation(update)
                 update.message.text == btnNeedTaxi -> chooseClientRoute(update)
                 update.message.text == btnNeedToSendPost -> choosePostRoute(update)
                 clientRoutesCached.any { it == update.message.text } -> setRouteAndChoosePreferredCars(update)
-                datesToChoseFrom.any{ it == update.message.text } -> requestContact(update)
+//                datesToChoseFrom.any{ it == update.message.text } -> requestContact(update)
+                datesToChoseFrom.any{ it == update.message.text } -> if (trip.type == TripType.CLIENT) chooseRidersQuantity(update) else requestLocation(update)
                 update.message.text == btnSaveTrip -> saveTrip(update)
                 update.message.text == btnChangeTrip -> denyTrip(update)
                 update.message.text == btnStartNewTrip -> commandStart(update)
@@ -100,7 +101,7 @@ class ClientMessageService
                 update.message.text == btnAllCarsForClient -> chooseAllCarsAndTripDate(update)
                 update.message.text == btnEnoughCars -> chooseDate(update)
                 ridersQuantityList.any { it == update.message.text } -> requestLocation(update)
-                locationRequested -> reviewTrip(update)
+                locationRequested -> requestContact(update)
 
                 //taxi
                 update.message.text == btnIamTaxi -> chooseTaxiFrameRoute(update)
@@ -110,7 +111,7 @@ class ClientMessageService
                 update.message.text == btnSaveDriverDetails -> saveDriverDetails(update)
                 update.message.text == btnCancelDriverDetails -> cancelDriverDetails(update)
 
-                containsPhone(update) -> if (trip.type == TripType.CLIENT) chooseRidersQuantity(update) else reviewTrip(update)
+                containsPhone(update) -> reviewTrip(update)
                 else -> listOf(sendMessage(update, "Kutilmagan xatolik"))
                 }
             update.hasCallbackQuery() -> when {
@@ -233,8 +234,9 @@ class ClientMessageService
     }
 
     private fun requestContact(update: Update): List<SendMessage> {
-        val dateInString = update.message.text
-        trip.tripDate = if (dateInString == btnToday) LocalDate.now() else LocalDate.now().plusDays(1)
+
+        locationRequested = false
+        trip.pickupPoint = getLocation(update)
 
         val button = KeyboardButton("\uD83D\uDCF1Ракамни юбориш", true, false, null)
 
@@ -248,7 +250,8 @@ class ClientMessageService
     }
 
     private fun chooseRidersQuantity(update: Update): List<BotApiMethod<Message>> {
-        telegramUserService.savePhone(update)
+        val dateInString = update.message.text
+        trip.tripDate = if (dateInString == btnToday) LocalDate.now() else LocalDate.now().plusDays(1)
 
         val replyText = "Йуловчилар сонини танланг"
         val markup = createReplyKeyboardMarkup(ridersQuantityList, columns = 4)
@@ -259,6 +262,12 @@ class ClientMessageService
     private fun requestLocation(update: Update): List<BotApiMethod<Message>> {
         if (trip.type == TripType.CLIENT)
             trip.ridersQuantity = update.message.text.toInt()
+        else{
+            val dateInString = update.message.text
+            trip.tripDate = if (dateInString == btnToday)
+                LocalDate.now()
+            else LocalDate.now().plusDays(1)
+        }
 
         locationRequested = true
 
@@ -275,9 +284,7 @@ class ClientMessageService
     }
 
     private fun reviewTrip(update: Update): List<SendMessage> {
-        locationRequested = false
-
-        trip.pickupPoint = getLocation(update)
+        telegramUserService.savePhone(update)
 
         val replyText = generateTripAnnouncement(trip.id) +
                 "\nЭълон бериш учун ёки йуловчи кидириш учун куйидаги ботдан фойдаланинг @$botName"
