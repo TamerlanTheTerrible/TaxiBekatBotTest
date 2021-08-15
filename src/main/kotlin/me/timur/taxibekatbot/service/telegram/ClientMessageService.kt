@@ -55,6 +55,7 @@ class ClientMessageService
     private var user = TelegramUser()
     private var trip = Trip()
     private var driver = Driver()
+    private var isDriver = false
 
     private var clientRoutesCached = emptyList<String>()
     private var fromRegionNames = emptyList<String>()
@@ -62,13 +63,14 @@ class ClientMessageService
     private var toRegionNames = emptyList<String>()
     private var toSubRegionNames = emptyList<String>()
     private val ridersQuantityList = listOf("1", "2", "3", "4")
+    private var clientPreferredCars = arrayListOf<String>()
 
     private var taxiFrameRoute: String = ""
     private var taxiFrameRoutes = arrayListOf<String>()
     private var taxiSubregionsToChooseFrom = arrayListOf<String>()
     private var taxiSubRegionNameSet = arrayListOf<String>()
     private var taxiRoutesLimit = 2
-    private var carNames = emptyList<String>()
+    private var carNames = arrayListOf<String>()
     private var carName: String = ""
 
 
@@ -81,7 +83,7 @@ class ClientMessageService
                 //client
                 update.message.text == btnNeedTaxi -> chooseClientRoute(update)
                 update.message.text == btnNeedToSendPost -> choosePostRoute(update)
-                clientRoutesCached.any { it == update.message.text } -> setRouteAndChooseDate(update)
+                clientRoutesCached.any { it == update.message.text } -> setRouteAndChoosePreferredCars(update)
                 datesToChoseFrom.any{ it == update.message.text } -> requestContact(update)
                 update.message.text == btnSaveTrip -> saveTrip(update)
                 update.message.text == btnChangeTrip -> denyTrip(update)
@@ -90,14 +92,17 @@ class ClientMessageService
                 fromRegionNames.any { it == update.message.text } -> chooseFromSubRegion(update)
                 fromSubRegionNames.any { it == update.message.text } -> chooseToRegion(update)
                 toRegionNames.any { it == update.message.text } -> chooseToSubRegion(update)
-                toSubRegionNames.any{ it == update.message.text} -> chooseDate(update)
+                toSubRegionNames.any{ it == update.message.text} -> chooseFirstClientPreferredCar(update)
+                carNames.any { it == update.message.text } && !isDriver -> chooseOtherClientPreferredCars(update)
+                update.message.text == btnAllCarsForClient -> chooseAllCarsAndTripDate(update)
+                update.message.text == btnEnoughCars -> chooseDate(update)
                 ridersQuantityList.any { it == update.message.text } -> reviewTrip(update)
 
                 //taxi
                 update.message.text == btnIamTaxi -> chooseTaxiFrameRoute(update)
                 taxiFrameRoutes.any { it == update.message.text } -> chooseFirstTaxiRoute(update)
                 taxiSubregionsToChooseFrom.any{ it == update.message.text } -> chooseOtherTaxiRoutes(update)
-                carNames.any { it == update.message.text } -> previewDriverData(update)
+                carNames.any { it == update.message.text } && isDriver -> previewDriverData(update)
                 update.message.text == btnSaveDriverDetails -> saveDriverDetails(update)
                 update.message.text == btnCancelDriverDetails -> cancelDriverDetails(update)
 
@@ -124,9 +129,9 @@ class ClientMessageService
         clearVariables()
         user = telegramUserService.saveUser(update)
 
-        val markup = createReplyKeyboardMarkup(btnNeedTaxi, btnIamTaxi, btnNeedToSendPost)
+        val markup = createReplyKeyboardMarkup(btnNeedTaxi, btnIamTaxi, btnNeedToSendPost, mainMenuButton = false)
         val responseText = "Ассалому алайкум. TaxiBekat га хуш келибсиз." +
-                "\n\n Сиз бу ерда йуловчи, хайдовчи кидириш ва почта юбориш хизматидан фойдаланишингиз мумкин"
+                "\n\nСиз бу ерда йуловчи, хайдовчи кидириш ва почта юбориш хизматидан фойдаланишингиз мумкин"
         return listOf(sendMessage(update, responseText, markup))
     }
 
@@ -148,29 +153,66 @@ class ClientMessageService
         return if (clientRoutesCached.isEmpty())
             chooseFromRegion(update)
         else {
-            val keyboard = createKeyboard(clientRoutesCached)
+            val keyboard = createKeyboard(clientRoutesCached, mainMenuButton = false)
             keyboard.add(createKeyboardRow(btnNewClientRoute))
+            keyboard.add(createKeyboardRow(btnMainMenu))
 
             val markup = ReplyKeyboardMarkup(keyboard, true, true, false)
             listOf(sendMessage(update, "\uD83D\uDDFA Йуналишни танланг", markup))
         }
     }
 
-    private fun setRouteAndChooseDate(update: Update): List<BotApiMethod<Message>> {
+    private fun setRouteAndChoosePreferredCars(update: Update): List<BotApiMethod<Message>> {
         val fromSubRegLatinName = update.getStringBefore("-")
         val toSubRegLatinName = update.getStringAfter("-")
 
         trip.from = subRegionService.findByNameLatin(fromSubRegLatinName)
         trip.to = subRegionService.findByNameLatin(toSubRegLatinName)
 
-        return chooseDate(update)
+        return chooseFirstClientPreferredCar(update)
     }
 
-    private fun chooseDate(update: Update): List<SendMessage> {
+    private fun chooseFirstClientPreferredCar(update: Update): List<BotApiMethod<Message>> {
         if(trip.to== null) {
             val toSubRegLatinName = update.message.text.substringAfter("\uD83D\uDD35 ")
             trip.to = subRegionService.findByNameLatin(toSubRegLatinName)
         }
+
+        carNames = ArrayList(carRepository.findAll().map { it.nameLatin!! })
+        val btnTexts = ArrayList(carNames).apply { add(btnAllCarsForClient) }
+
+        val markup = createReplyKeyboardMarkup(btnTexts)
+        val responseText = "Узингиз афзал курган мошина русумини танланш" +
+                "\n\nБир неча ёки барча русумларни танлашингиз мумкин. Канчалик куп русум танласангиз, хайдовчи танлашда вариантингиз шунчалик куп булади"
+        return listOf(sendMessage(update, responseText, markup))
+    }
+
+    private fun chooseOtherClientPreferredCars(update: Update): List<BotApiMethod<Message>> {
+        val car = update.message.text
+
+        clientPreferredCars.add(car)
+
+        carNames.remove(car)
+        if (carNames.isEmpty())
+            return chooseDate(update)
+
+        val btnTexts = ArrayList(carNames).apply { add(btnEnoughCars) }
+        val markup = createReplyKeyboardMarkup(btnTexts)
+
+        val responseText = "Яна кайси мошина русумини танлашни хохлайсиз?" +
+                "\n\n Танлаб булсангиз \"$btnEnoughCars\" тугмасини босинг"
+
+        return listOf(sendMessage(update, responseText, markup))
+    }
+
+    private fun chooseAllCarsAndTripDate(update: Update): List<BotApiMethod<Message>> {
+        clientPreferredCars = ArrayList(carRepository.findAll().map { it.nameLatin!! })
+
+        return chooseDate(update)
+    }
+
+    private fun chooseDate(update: Update): List<SendMessage> {
+        trip.preferredCars  = clientPreferredCars.toString()
 
         val markup = createReplyKeyboardMarkup(datesToChoseFrom)
         val replyText = "\uD83D\uDCC5 Качон йулга чикмокчисиз?"
@@ -197,7 +239,7 @@ class ClientMessageService
         telegramUserService.savePhone(update)
 
         val replyText = "Йуловчилар сонини танланг"
-        val markup = createReplyKeyboardMarkup(ridersQuantityList, 4)
+        val markup = createReplyKeyboardMarkup(ridersQuantityList, columns = 4)
 
         return listOf(sendMessage(update, replyText, markup))
     }
@@ -253,7 +295,7 @@ class ClientMessageService
                 "#️⃣${trip.id} ракамли эълонингиз жойланди" +
                 "\n\n\uD83E\uDD1D Мос хайдовчи топилиши билан сизга хабар берамиз" +
                 "\n\n\uD83D\uDE4F @TaxiBekatBot дан фойдаланганингиз учун рахмат. Йулингиз бехатар булсин"
-        val messageToClient = sendMessage(update, replyTextClient, createReplyKeyboardMarkup(btnMainMenu))
+        val messageToClient = sendMessage(update, replyTextClient, createReplyKeyboardMarkup())
 
         val forwardTextGroup = generateTripAnnouncement(trip.id) +
                 "\nЭълон бериш учун ёки йуловчи кидириш учун куйидаги ботдан фойдаланинг @$botName"
@@ -403,6 +445,7 @@ class ClientMessageService
     //TAXI
     private fun chooseTaxiFrameRoute(update: Update): List<BotApiMethod<Message>> {
         val frameRoutes = frameRouteRepository.findAll()
+        isDriver = true
 
         frameRoutes.forEach {
             val home = it.home!!.nameLatin
@@ -443,7 +486,7 @@ class ClientMessageService
     }
 
     private fun chooseTaxiCar(update: Update): List<BotApiMethod<Message>> {
-        carNames = carRepository.findAll().map { it.nameLatin!! }
+        carNames = ArrayList(carRepository.findAll().map { it.nameLatin!! })
         val markup = createReplyKeyboardMarkup(carNames)
         val replyText = "Мошинангиз русумини танланг"
 
@@ -574,6 +617,7 @@ class ClientMessageService
         announcementMessage += "\n\n ${trip.type!!.emoji} ${trip.type!!.nameLatin} " +
                 "\n \uD83D\uDDFA ${trip.getTripStartPlace()} - ${trip.getTripEndPlace()} " +
                 "\n \uD83D\uDCC5 ${trip.getTripDay()}-${trip.getTripMonth()}-${trip.getTripYear()}" +
+                "\n \uD83D\uDE99 ${trip.preferredCars.toString().substringAfter("[").substringBefore("]")}" +
                 "\n \uD83D\uDC65 Йуловчилар сони: ${trip.ridersQuantity}" +
                 "\n \uD83D\uDCF1 Тел: ${formatPhoneNumber("${user.phone}")}" +
                 "\n" +
@@ -588,6 +632,7 @@ class ClientMessageService
         user = TelegramUser()
         trip = Trip()
         driver = Driver()
+        isDriver = false
 
         clientRoutesCached = emptyList()
         fromRegionNames = emptyList()
@@ -615,6 +660,10 @@ class ClientMessageService
 
         //client route
         const val btnNewClientRoute = "➕ Бошка йуналиш"
+        //client preferred cars
+        const val btnAllCarsForClient = "Фарки йук"
+        const val btnEnoughCars = "Давом эттириш"
+
         //date
         const val btnToday = "Бугун"
         const val btnTomorrow = "Эртага"

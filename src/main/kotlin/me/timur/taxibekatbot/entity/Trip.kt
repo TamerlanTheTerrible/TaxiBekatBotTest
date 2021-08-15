@@ -47,6 +47,9 @@ class Trip() {
     @Column(name = "status")
     var status: TripStatus = TripStatus.ACTIVE
 
+    @Column(name = "preferred_cars")
+    var preferredCars: String? = null
+
     @ManyToOne
     @JoinColumn(name = "confirmed_driver")
     var driver: Driver? = null
@@ -83,10 +86,5 @@ class Trip() {
     fun getTripMonth(): Month? = tripDate?.month
     @Transient
     fun getTripYear(): Int? = tripDate?.year
-
-    override fun toString(): String {
-        return "Announcement(id=$id, dateCreated=$dateCreated, announcementType=$type, tripDate=$tripDate, from=$from, to=$to, telegramUser=$telegramUser)"
-    }
-
 
 }
