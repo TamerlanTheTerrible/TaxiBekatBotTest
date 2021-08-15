@@ -29,12 +29,12 @@ class SubRegionService
 
     fun findMainSubRegion(regionName: String): SubRegion {
         return findAllByRegionNameLatin(regionName)
-            .firstOrNull { it.isCenter }
+            .firstOrNull { it.center }
             ?: throw DataNotFoundException("Could not find main sub-region of region $regionName")
     }
 
     fun findAllByRegionNameLatin(name: String): List<SubRegion> {
-        return subRegionRepo.findAllByRegionNameLatin(name)
+        return subRegionRepo.findAllByRegionNameLatinOrderByCenterDesc(name)
     }
 
 }
